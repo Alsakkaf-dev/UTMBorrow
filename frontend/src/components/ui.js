@@ -793,3 +793,139 @@ export function SlideDrawer({
     </AnimatePresence>
   );
 }
+
+/* ============================ DataTable ============================ */
+// Generic admin table: config-driven columns, optional row selection, sorting,
+// loading skeleton, and an empty state. Each `columns` entry can supply a custom render().
+export function DataTable({
+  columns,
+  rows,
+  loading = false,
+  onRowClick,
+  selectable = false,
+  selectedIds = [],
+  onSelectChange,
+  sortKey,
+  sortDir,
+  onSort,
+  emptyTitle = "No results",
+  emptySubtitle,
+  testid,
+  rowTestid,
+}) {
+  // Header checkbox states: all rows selected vs. only some
+  const allSelected  = rows?.length > 0 && rows.every((r) => selectedIds.includes(r.id));
+  const someSelected = rows?.some((r) => selectedIds.includes(r.id));
+
+  // Header checkbox: select every row, or clear the selection
+  const toggleAll = () => {
+    if (!onSelectChange) return;
+    onSelectChange(allSelected ? [] : rows.map((r) => r.id));
+  };
+  // Row checkbox: add/remove this row's id from the selection
+  const toggleRow = (id) => {
+    if (!onSelectChange) return;
+    onSelectChange(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
+  };
+
+  // Sort indicator per column: neutral arrows, or brand up/down for the active sort
+  const SortIcon = ({ col }) => {
+    if (!col.sortable) return null;
+    if (sortKey !== col.key) return <CaretUpDown size={13} className="text-slate-300 ml-1 shrink-0" />;
+    return sortDir === "asc"
+      ? <CaretUp size={13} className="text-brand-500 ml-1 shrink-0" />
+      : <CaretDown size={13} className="text-brand-500 ml-1 shrink-0" />;
+  };
+
+  const SKELETON = Array.from({ length: 5 }); // 5 placeholder rows while loading
+
+  return (
+    <div className="w-full overflow-x-auto rounded-2xl border border-line shadow-soft" data-testid={testid}>
+      <table className="w-full text-sm min-w-[600px]">
+        <thead>
+          <tr className="border-b border-line bg-canvas">
+            {/* leading select-all checkbox column (only when selectable) */}
+            {selectable && (
+              <th className="w-10 pl-4 py-3 text-left">
+                <button onClick={toggleAll} className="text-slate-400 hover:text-brand-600 transition-colors">
+                  {/* filled = all selected, light = some selected, empty = none */}
+                  {allSelected
+                    ? <CheckSquare size={16} weight="fill" className="text-brand-600" />
+                    : someSelected
+                    ? <CheckSquare size={16} className="text-brand-400" />
+                    : <Square size={16} />}
+                </button>
+              </th>
+            )}
+            {/* one header cell per column; clickable when sortable */}
+            {columns.map((col) => (
+              <th
+                key={col.key}
+                className={`px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-muted whitespace-nowrap ${col.sortable ? "cursor-pointer select-none hover:text-ink" : ""} ${col.className || ""}`}
+                style={col.width ? { width: col.width } : {}}
+                onClick={() => col.sortable && onSort && onSort(col.key)}
+              >
+                <span className="inline-flex items-center">
+                  {col.label}
+                  <SortIcon col={col} />
+                </span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {/* three states: loading skeleton -> empty message -> actual rows */}
+          {loading ? (
+            SKELETON.map((_, i) => (
+              <tr key={i} className="border-b border-line last:border-0">
+                {selectable && <td className="pl-4 py-3"><div className="w-4 h-4 rounded bg-line animate-pulse" /></td>}
+                {columns.map((col) => (
+                  <td key={col.key} className="px-4 py-3">
+                    {/* random width gives the skeleton a more natural look */}
+                    <div className="h-4 rounded-lg bg-line animate-pulse" style={{ width: `${55 + Math.random() * 35}%` }} />
+                  </td>
+                ))}
+              </tr>
+            ))
+          ) : rows?.length === 0 ? (
+            <tr>
+              <td colSpan={columns.length + (selectable ? 1 : 0)} className="px-4 py-12 text-center">
+                <p className="font-semibold text-ink text-sm">{emptyTitle}</p>
+                {emptySubtitle && <p className="text-xs text-muted mt-1">{emptySubtitle}</p>}
+              </td>
+            </tr>
+          ) : (
+            rows?.map((row, i) => {
+              const isSelected = selectedIds.includes(row.id);
+              return (
+                <tr
+                  key={row.id || i}
+                  data-testid={rowTestid ? `${rowTestid}-${row.id}` : undefined}
+                  onClick={() => onRowClick && onRowClick(row)}
+                  className={`border-b border-line last:border-0 transition-colors ${onRowClick ? "cursor-pointer hover:bg-brand-50/40" : ""} ${isSelected ? "bg-brand-50/60" : "bg-surface"}`}
+                >
+                  {selectable && (
+                    // stopPropagation so ticking the box doesn't also trigger onRowClick
+                    <td className="pl-4 py-3" onClick={(e) => { e.stopPropagation(); toggleRow(row.id); }}>
+                      {isSelected
+                        ? <CheckSquare size={16} weight="fill" className="text-brand-600" />
+                        : <Square size={16} className="text-slate-300" />}
+                    </td>
+                  )}
+                  {columns.map((col) => (
+                    <td key={col.key} className={`px-4 py-3 ${col.align === "right" ? "text-right" : ""} ${col.tdClassName || ""}`}>
+                      {/* use the column's custom render() if given, else the raw value (— if empty) */}
+                      {col.render ? col.render(row[col.key], row) : (row[col.key] ?? "—")}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+
