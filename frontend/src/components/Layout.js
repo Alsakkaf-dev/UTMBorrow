@@ -290,5 +290,93 @@ function TopHeader({ user, unread, onBellClick }) {
 }
 
 
+/* ══════════════════ Layout Root ══════════════════ */
+// App shell: header + bottom nav wrapped around the routed page (<Outlet/>).
+// Chat and item-form routes use a stripped-down, full-height layout instead.
+export default function Layout() {
+  const { user, unread } = useAuth();
+  const navigate         = useNavigate();
+  const location         = useLocation();
+  const [drawer, setDrawer] = useState(false); // notification drawer open/closed
+  // Routes that opt out of the standard chrome (header/bottom-nav)
+  const isChat = location.pathname.startsWith("/chat/");
+  const isItemForm = location.pathname === "/items/new" ||
+    (location.pathname.startsWith("/items/") && location.pathname.endsWith("/edit"));
+
+  // Handover rating prompt — when a borrow completes, ask the borrower to rate the lender
+  const [ratingPrompt, setRatingPrompt] = useState(null);
+
+  // Listen for transaction updates; pop the rating dialog only if this user is the
+  // borrower and is actually eligible to rate (and hasn't already).
+  useRealtimeEvent("transaction.updated", async (p) => {
+    if (p.status !== "Borrowed" || !user) return;
+    try {
+      const { data }     = await api.get(`/transactions/${p.transaction_id}`);
+      const tx           = data.transaction || data;
+      if (tx.borrower_id !== user.id) return;            // only prompt the borrower
+      const { data: elig } = await api.get(`/ratings/transaction/${tx.id}/eligibility`);
+      if (!elig.allowed || elig.already_rated) return;   // skip if not allowed / already rated
+      setRatingPrompt({
+        transactionId: tx.id,
+        lenderName:    tx.lender?.full_name || "your lender",
+      });
+    } catch { /* best-effort */ }
+  });
+
+  // Bottom-nav tabs; the Activity tab shows the unread badge
+  const tabs = [
+    { to: "/home",      label: "Home",     icon: House       },
+    { to: "/lend",      label: "Lend",     icon: HandArrowUp },
+    { to: "/dashboard", label: "Activity", icon: SquaresFour, badge: unread },
+    { to: "/profile",   label: "Profile",  icon: User        },
+  ];
+  if (user?.is_admin) tabs.push({ to: "/admin", label: "Admin", icon: ShieldCheck }); // admins get an extra tab
+
+  return (
+    // Root sizing differs per route: chat fills the screen, item-form is plain,
+    // normal pages reserve bottom padding for the floating nav.
+    <div className={
+      isChat     ? "h-screen overflow-hidden flex flex-col"
+      : isItemForm ? "min-h-screen"
+      : "min-h-screen pb-28"
+    }>
+      {/* Top header (hidden on chat + item-form) */}
+      {!isChat && !isItemForm && (
+        <TopHeader
+          user={user}
+          unread={unread}
+          onBellClick={() => setDrawer(true)}
+        />
+      )}
+
+      {/* Main content — `key` forces a fresh mount on every route change */}
+      <main className={
+        isChat      ? "flex-1 overflow-hidden"
+        : isItemForm ? ""
+        : "max-w-2xl mx-auto px-5 py-6"
+      }>
+        <Outlet key={location.pathname} />
+      </main>
+
+      {/* Bottom nav — hidden on item form (it has its own CTA navigation) */}
+      {!isChat && !isItemForm && <BottomNav tabs={tabs} />}
+
+      {/* Notification quick-drawer */}
+      <NotificationDrawer open={drawer} onClose={() => setDrawer(false)} />
+
+      {/* Handover rating prompt — returns to home after rating or dismissing */}
+      {ratingPrompt && (
+        <RatingDialog
+          open={!!ratingPrompt}
+          onClose={() => { setRatingPrompt(null); navigate("/home"); }}
+          transactionId={ratingPrompt.transactionId}
+          counterpartyName={ratingPrompt.lenderName}
+          onRated={() => { setRatingPrompt(null); navigate("/home"); }}
+        />
+      )}
+    </div>
+  );
+}
+
 
 
