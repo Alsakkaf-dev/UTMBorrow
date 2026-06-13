@@ -150,3 +150,64 @@ function NotificationDrawer({ open, onClose }) {
   );
 }
 
+
+/* ══════════════════ Bottom Navigation ══════════════════ */
+// Floating mobile tab bar; `tabs` = [{ to, label, icon, badge? }]
+function BottomNav({ tabs }) {
+  return (
+    <nav
+      className="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-50"
+      aria-label="Main navigation"
+    >
+      {/* Glass pill container */}
+      <div className="glass border border-white/50 shadow-pop rounded-full h-[62px] flex items-center justify-around px-2">
+        {tabs.map((t) => (
+          <NavLink
+            key={t.to}
+            to={t.to}
+            data-testid={`tab-${t.label.toLowerCase()}`}
+            className="relative flex-1"
+          >
+            {({ isActive }) => (
+              <div className="relative flex flex-col items-center justify-center gap-0.5 h-12 py-1.5">
+                {/* Active pill background — shared layoutId animates it sliding between tabs */}
+                {isActive && (
+                  <motion.span
+                    layoutId="nav-pill"
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                    className="absolute inset-0 bg-brand-gradient rounded-full shadow-glow-sm"
+                  />
+                )}
+
+                {/* Icon + label */}
+                <span className={`relative z-10 flex flex-col items-center gap-0.5 transition-colors duration-200 ${
+                  isActive ? "text-white" : "text-slate-400 hover:text-slate-600"
+                }`}>
+                  <t.icon size={22} weight={isActive ? "fill" : "regular"} />
+                  <span className="text-[10px] font-bold leading-none">{t.label}</span>
+                </span>
+
+                {/* Unread badge (only when this tab has a count); caps at "9+" */}
+                <AnimatePresence>
+                  {t.badge > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 22 }}
+                      data-testid="nav-unread-badge"
+                      className="absolute top-0.5 left-1/2 translate-x-2 min-w-[18px] h-[18px] px-1 bg-status-cancelled text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white z-20"
+                    >
+                      {t.badge > 9 ? "9+" : t.badge}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+          </NavLink>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
