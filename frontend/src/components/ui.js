@@ -123,4 +123,111 @@ export function Select({ label, children, className = "", ...props }) {
   );
 }
 
+/* ============================ Card ============================ */
+// Rounded surface container; `as` picks the element, `hover` adds a lift effect
+export function Card({ as = "div", hover = false, className = "", children, ...props }) {
+  const Comp = motion[as] || motion.div; // animate the chosen tag (fallback: div)
+  return (
+    <Comp
+      whileHover={hover ? { y: -4, boxShadow: "0 2px 4px rgba(15,23,42,0.06), 0 20px 40px -16px rgba(15,23,42,0.24)" } : undefined}
+      transition={{ type: "spring", stiffness: 300, damping: 24 }}
+      className={`bg-surface border border-line rounded-3xl shadow-card ${className}`}
+      {...props}
+    >
+      {children}
+    </Comp>
+  );
+}
 
+/* ============================ SectionHeader ============================ */
+// Title row with optional eyebrow label and a right-aligned action slot
+export function SectionHeader({ eyebrow, title, action, className = "" }) {
+  return (
+    <div className={`flex items-end justify-between gap-3 ${className}`}>
+      <div>
+        {eyebrow && <p className="label-eyebrow mb-0.5">{eyebrow}</p>}
+        <h2 className="font-head font-bold text-xl text-ink tracking-tight">{title}</h2>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+/* ============================ Chip ============================ */
+// Pill toggle/filter; `active` switches to the filled brand style
+export function Chip({ active, icon, className = "", children, ...props }) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.93 }}
+      className={`shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap border transition-all duration-200 ${
+        active
+          ? "bg-brand-gradient text-white border-transparent shadow-glow-sm"
+          : "bg-surface border-line text-muted hover:border-brand-300 hover:text-ink hover:bg-brand-50/40"
+      } ${className}`}
+      {...props}
+    >
+      {icon && <span className="shrink-0">{icon}</span>}
+      {children}
+    </motion.button>
+  );
+}
+
+/* ============================ Avatar ============================ */
+// Profile image, or first 1–2 name initials on a brand background as fallback
+export function Avatar({ name, src, size = 40, ring = false, className = "" }) {
+  // Take the first letter of up to two name parts, e.g. "Mohammed Alsakkaf" -> "MA"
+  const initials = (name || "?")
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return (
+    <div
+      className={`shrink-0 rounded-full overflow-hidden flex items-center justify-center font-head font-bold text-white bg-brand-gradient ${ring ? "ring-2 ring-brand-200 ring-offset-1" : ""} ${className}`}
+      style={{ width: size, height: size, fontSize: size * 0.38 }}  // scale font with avatar size
+    >
+      {src ? <img src={src} alt={name} className="w-full h-full object-cover" /> : initials}
+    </div>
+  );
+}
+
+/* ============================ Status badges ============================ */
+// Per-status dot color + pill classes (keyed by the transaction/item status string)
+const STATUS_STYLES = {
+  Available: { dot: "bg-brand-500",         cls: "bg-brand-50 text-brand-700 border-brand-100" },
+  Pending:   { dot: "bg-status-pending",    cls: "bg-amber-50 text-amber-700 border-amber-100" },
+  Approved:  { dot: "bg-status-pending",    cls: "bg-amber-50 text-amber-700 border-amber-100" },
+  Borrowed:  { dot: "bg-status-borrowed",   cls: "bg-emerald-50 text-emerald-700 border-emerald-100" },
+  Completed: { dot: "bg-status-completed",  cls: "bg-blue-50 text-blue-700 border-blue-100" },
+  Rejected:  { dot: "bg-status-cancelled",  cls: "bg-red-50 text-red-700 border-red-100" },
+  Cancelled: { dot: "bg-status-cancelled",  cls: "bg-red-50 text-red-700 border-red-100" },
+  Removed:   { dot: "bg-status-cancelled",  cls: "bg-red-50 text-red-700 border-red-100" },
+  Overdue:   { dot: "bg-status-overdue",    cls: "bg-red-50 text-red-700 border-red-100" },
+};
+
+// Colored pill (dot + label) for a status; unknown statuses fall back to grey
+export function StatusBadge({ status, className = "" }) {
+  const s = STATUS_STYLES[status] || { dot: "bg-slate-400", cls: "bg-slate-100 text-slate-600 border-slate-200" };
+  return (
+    <span
+      data-testid={`status-badge-${status}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${s.cls} ${className}`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.dot}`} />
+      {status}
+    </span>
+  );
+}
+
+// Attention badge for returns: "Overdue" (late) vs "Return Due" (upcoming)
+export function UrgentBadge({ overdue, className = "" }) {
+  return (
+    <span
+      data-testid="urgent-return-badge"
+      className={`inline-flex items-center gap-1 px-2 py-1 bg-danger-gradient text-white text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-glow-danger animate-pulse-soft ${className}`}
+    >
+      {overdue ? "Overdue" : "Return Due"}
+    </span>
+  );
+}
