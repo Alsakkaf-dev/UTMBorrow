@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, ArrowUp, ArrowDown, Clock, CaretUpDown, CaretUp, CaretDown, CheckSquare, Square } from "@phosphor-icons/react";
 
 /* ============================ Button ============================ */
+// Tailwind class sets per visual style; pick one via the `variant` prop
 const BTN_VARIANTS = {
   primary:
     "text-white bg-brand-gradient shadow-glow-sm hover:shadow-glow hover:brightness-[1.06] btn-shine",
@@ -14,6 +15,7 @@ const BTN_VARIANTS = {
   ghost:   "bg-transparent text-ink hover:bg-slate-100",
   dark:    "bg-ink text-white hover:bg-inkhover shadow-float btn-shine",
 };
+// Padding + font-size per `size` prop
 const BTN_SIZES = {
   xs: "px-3 py-1.5 text-xs",
   sm: "px-3.5 py-2 text-[13px]",
@@ -22,6 +24,7 @@ const BTN_SIZES = {
   xl: "px-8 py-4 text-base",
 };
 
+// Primary button: animated press/hover, optional loading spinner
 export function Button({
   variant = "primary",
   size = "md",
@@ -31,13 +34,14 @@ export function Button({
   disabled,
   ...props
 }) {
-  const isDisabled = disabled || loading;
+  const isDisabled = disabled || loading; // loading also blocks interaction
   return (
     <motion.button
-      whileTap={isDisabled ? undefined : { scale: 0.96 }}
+      whileTap={isDisabled ? undefined : { scale: 0.96 }}  // no motion while disabled
       whileHover={isDisabled ? undefined : { y: -1 }}
       transition={{ type: "spring", stiffness: 500, damping: 30 }}
       disabled={isDisabled}
+      // base classes + size + variant + any caller-supplied className
       className={`relative inline-flex items-center justify-center gap-2 font-plex font-semibold rounded-full select-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${BTN_SIZES[size] || BTN_SIZES.md} ${BTN_VARIANTS[variant]} ${className}`}
       {...props}
     >
@@ -48,6 +52,7 @@ export function Button({
 }
 
 /* ============================ IconButton ============================ */
+// Round, icon-only button; `label` becomes the accessibility name (aria-label)
 export function IconButton({ className = "", children, label, ...props }) {
   return (
     <motion.button
@@ -64,9 +69,11 @@ export function IconButton({ className = "", children, label, ...props }) {
 }
 
 /* ============================ Inputs ============================ */
+// Shared field styling reused by Input / Textarea / Select for a consistent look
 const FIELD =
   "w-full px-4 py-3 bg-surface border border-line rounded-2xl text-ink placeholder:text-slate-400 outline-none transition-all duration-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-100 font-plex text-sm";
 
+// Text input with optional label, leading icon, hint, and error message
 export function Input({ label, error, icon, hint, className = "", ...props }) {
   return (
     <label className="block">
@@ -78,16 +85,19 @@ export function Input({ label, error, icon, hint, className = "", ...props }) {
           </span>
         )}
         <input
+          // extra left padding when an icon is present; red border on error
           className={`${FIELD} ${icon ? "pl-11" : ""} ${error ? "!border-status-cancelled !ring-red-100" : ""} ${className}`}
           {...props}
         />
       </div>
+      {/* show the hint only when there's no error to show instead */}
       {hint  && !error && <span className="text-slate-400 text-xs mt-1.5 block">{hint}</span>}
       {error && <span className="text-status-cancelled text-xs mt-1.5 block">{error}</span>}
     </label>
   );
 }
 
+// Multi-line text field (no resize handle), same shared styling
 export function Textarea({ label, className = "", ...props }) {
   return (
     <label className="block">
@@ -97,6 +107,7 @@ export function Textarea({ label, className = "", ...props }) {
   );
 }
 
+// Dropdown: hides the native arrow (appearance-none) and draws our own chevron
 export function Select({ label, children, className = "", ...props }) {
   return (
     <label className="block">
@@ -105,9 +116,11 @@ export function Select({ label, children, className = "", ...props }) {
         <select className={`${FIELD} appearance-none pr-10 cursor-pointer ${className}`} {...props}>
           {children}
         </select>
+        {/* custom down-chevron, positioned over the right edge */}
         <svg className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
       </div>
     </label>
   );
 }
+
 
