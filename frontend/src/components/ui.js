@@ -814,7 +814,8 @@ export function DataTable({
   rowTestid,
 }) {
   // Header checkbox states: all rows selected vs. only some
-  const allSelected  = rows?.length > 0 && rows.every((r) => selectedIds.includes(r.id));
+  const allSelected =
+    rows?.length > 0 && rows.every((r) => selectedIds.includes(r.id));
   const someSelected = rows?.some((r) => selectedIds.includes(r.id));
 
   // Header checkbox: select every row, or clear the selection
@@ -825,35 +826,54 @@ export function DataTable({
   // Row checkbox: add/remove this row's id from the selection
   const toggleRow = (id) => {
     if (!onSelectChange) return;
-    onSelectChange(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
+    onSelectChange(
+      selectedIds.includes(id)
+        ? selectedIds.filter((x) => x !== id)
+        : [...selectedIds, id],
+    );
   };
 
   // Sort indicator per column: neutral arrows, or brand up/down for the active sort
   const SortIcon = ({ col }) => {
     if (!col.sortable) return null;
-    if (sortKey !== col.key) return <CaretUpDown size={13} className="text-slate-300 ml-1 shrink-0" />;
-    return sortDir === "asc"
-      ? <CaretUp size={13} className="text-brand-500 ml-1 shrink-0" />
-      : <CaretDown size={13} className="text-brand-500 ml-1 shrink-0" />;
+    if (sortKey !== col.key)
+      return <CaretUpDown size={13} className="text-slate-300 ml-1 shrink-0" />;
+    return sortDir === "asc" ? (
+      <CaretUp size={13} className="text-brand-500 ml-1 shrink-0" />
+    ) : (
+      <CaretDown size={13} className="text-brand-500 ml-1 shrink-0" />
+    );
   };
 
   const SKELETON = Array.from({ length: 5 }); // 5 placeholder rows while loading
 
   return (
-    <div className="w-full overflow-x-auto rounded-2xl border border-line shadow-soft" data-testid={testid}>
+    <div
+      className="w-full overflow-x-auto rounded-2xl border border-line shadow-soft"
+      data-testid={testid}
+    >
       <table className="w-full text-sm min-w-[600px]">
         <thead>
           <tr className="border-b border-line bg-canvas">
             {/* leading select-all checkbox column (only when selectable) */}
             {selectable && (
               <th className="w-10 pl-4 py-3 text-left">
-                <button onClick={toggleAll} className="text-slate-400 hover:text-brand-600 transition-colors">
+                <button
+                  onClick={toggleAll}
+                  className="text-slate-400 hover:text-brand-600 transition-colors"
+                >
                   {/* filled = all selected, light = some selected, empty = none */}
-                  {allSelected
-                    ? <CheckSquare size={16} weight="fill" className="text-brand-600" />
-                    : someSelected
-                    ? <CheckSquare size={16} className="text-brand-400" />
-                    : <Square size={16} />}
+                  {allSelected ? (
+                    <CheckSquare
+                      size={16}
+                      weight="fill"
+                      className="text-brand-600"
+                    />
+                  ) : someSelected ? (
+                    <CheckSquare size={16} className="text-brand-400" />
+                  ) : (
+                    <Square size={16} />
+                  )}
                 </button>
               </th>
             )}
@@ -878,20 +898,32 @@ export function DataTable({
           {loading ? (
             SKELETON.map((_, i) => (
               <tr key={i} className="border-b border-line last:border-0">
-                {selectable && <td className="pl-4 py-3"><div className="w-4 h-4 rounded bg-line animate-pulse" /></td>}
+                {selectable && (
+                  <td className="pl-4 py-3">
+                    <div className="w-4 h-4 rounded bg-line animate-pulse" />
+                  </td>
+                )}
                 {columns.map((col) => (
                   <td key={col.key} className="px-4 py-3">
                     {/* random width gives the skeleton a more natural look */}
-                    <div className="h-4 rounded-lg bg-line animate-pulse" style={{ width: `${55 + Math.random() * 35}%` }} />
+                    <div
+                      className="h-4 rounded-lg bg-line animate-pulse"
+                      style={{ width: `${55 + Math.random() * 35}%` }}
+                    />
                   </td>
                 ))}
               </tr>
             ))
           ) : rows?.length === 0 ? (
             <tr>
-              <td colSpan={columns.length + (selectable ? 1 : 0)} className="px-4 py-12 text-center">
+              <td
+                colSpan={columns.length + (selectable ? 1 : 0)}
+                className="px-4 py-12 text-center"
+              >
                 <p className="font-semibold text-ink text-sm">{emptyTitle}</p>
-                {emptySubtitle && <p className="text-xs text-muted mt-1">{emptySubtitle}</p>}
+                {emptySubtitle && (
+                  <p className="text-xs text-muted mt-1">{emptySubtitle}</p>
+                )}
               </td>
             </tr>
           ) : (
@@ -906,16 +938,33 @@ export function DataTable({
                 >
                   {selectable && (
                     // stopPropagation so ticking the box doesn't also trigger onRowClick
-                    <td className="pl-4 py-3" onClick={(e) => { e.stopPropagation(); toggleRow(row.id); }}>
-                      {isSelected
-                        ? <CheckSquare size={16} weight="fill" className="text-brand-600" />
-                        : <Square size={16} className="text-slate-300" />}
+                    <td
+                      className="pl-4 py-3"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleRow(row.id);
+                      }}
+                    >
+                      {isSelected ? (
+                        <CheckSquare
+                          size={16}
+                          weight="fill"
+                          className="text-brand-600"
+                        />
+                      ) : (
+                        <Square size={16} className="text-slate-300" />
+                      )}
                     </td>
                   )}
                   {columns.map((col) => (
-                    <td key={col.key} className={`px-4 py-3 ${col.align === "right" ? "text-right" : ""} ${col.tdClassName || ""}`}>
+                    <td
+                      key={col.key}
+                      className={`px-4 py-3 ${col.align === "right" ? "text-right" : ""} ${col.tdClassName || ""}`}
+                    >
                       {/* use the column's custom render() if given, else the raw value (— if empty) */}
-                      {col.render ? col.render(row[col.key], row) : (row[col.key] ?? "—")}
+                      {col.render
+                        ? col.render(row[col.key], row)
+                        : (row[col.key] ?? "—")}
                     </td>
                   ))}
                 </tr>
@@ -928,4 +977,159 @@ export function DataTable({
   );
 }
 
+/* ============================ Tabs ============================ */
+// Segmented tab switcher; `tabs` is [{ value, label, icon?, count? }], `active` is the current value
+export function Tabs({ tabs, active, onChange, className = "" }) {
+  return (
+    <div
+      className={`flex gap-1 p-1 bg-canvas rounded-2xl border border-line ${className}`}
+    >
+      {tabs.map((t) => (
+        <button
+          key={t.value}
+          onClick={() => onChange(t.value)}
+          // active tab gets a raised white pill; others are muted
+          className={`relative flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
+            active === t.value
+              ? "bg-surface text-ink shadow-soft border border-line"
+              : "text-muted hover:text-ink"
+          }`}
+        >
+          {t.icon && <span>{t.icon}</span>}
+          {t.label}
+          {/* optional count badge, shown only when count > 0 */}
+          {t.count !== undefined && t.count > 0 && (
+            <span
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                active === t.value
+                  ? "bg-brand-50 text-brand-600"
+                  : "bg-slate-100 text-muted"
+              }`}
+            >
+              {t.count}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
 
+/* ============================ SearchBar ============================ */
+// Controlled search input with a magnifier icon and a clear (×) button
+export function SearchBar({
+  value,
+  onChange,
+  placeholder = "Search…",
+  className = "",
+  testid,
+}) {
+  const ref = useRef(null);
+  return (
+    // focus-within highlights the whole bar when the inner input is focused
+    <div
+      className={`flex items-center gap-2.5 bg-surface border border-line rounded-2xl px-4 h-11 shadow-soft focus-within:border-brand-500 focus-within:ring-4 focus-within:ring-brand-100 transition-all ${className}`}
+    >
+      {/* magnifier icon */}
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        className="text-slate-400 shrink-0"
+      >
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.35-4.35" />
+      </svg>
+      <input
+        ref={ref}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        data-testid={testid}
+        className="flex-1 outline-none bg-transparent text-sm font-plex text-ink placeholder:text-slate-400"
+      />
+      {/* clear button appears only when there's text */}
+      {value && (
+        <button
+          onClick={() => onChange("")}
+          className="text-slate-400 hover:text-ink transition-colors shrink-0"
+        >
+          <X size={14} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ============================ BulkActionBar ============================ */
+// Floating bar shown when rows are selected: count + actions + clear; hidden when count is 0
+export function BulkActionBar({ count, actions, onClear, className = "" }) {
+  return (
+    <AnimatePresence>
+      {count > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 16, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 16, scale: 0.96 }}
+          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+          className={`fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 bg-ink text-white px-4 py-2.5 rounded-2xl shadow-pop ${className}`}
+        >
+          <span className="text-sm font-semibold whitespace-nowrap">
+            {count} selected
+          </span>
+          <div className="w-px h-5 bg-white/20" /> {/* divider */}
+          {/* one button per action; `danger` actions render in red */}
+          {actions.map((a, i) => (
+            <button
+              key={i}
+              onClick={a.onClick}
+              disabled={a.loading}
+              className={`flex items-center gap-1.5 text-sm font-semibold px-2.5 py-1 rounded-xl transition-colors disabled:opacity-50 ${a.danger ? "text-red-300 hover:bg-red-900/40" : "text-white hover:bg-white/10"}`}
+            >
+              {a.icon && <span>{a.icon}</span>}
+              {a.label}
+            </button>
+          ))}
+          <div className="w-px h-5 bg-white/20" />
+          {/* clear the current selection */}
+          <button
+            onClick={onClear}
+            className="text-white/60 hover:text-white transition-colors text-sm"
+          >
+            <X size={15} />
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/* ============================ PageHeader ============================ */
+// Top-of-page heading: big title with optional eyebrow, subtitle, and a right-aligned action
+export function PageHeader({
+  eyebrow,
+  title,
+  subtitle,
+  action,
+  className = "",
+}) {
+  return (
+    <div className={`flex items-start justify-between gap-3 ${className}`}>
+      <div className="min-w-0">
+        {eyebrow && <p className="label-eyebrow mb-0.5">{eyebrow}</p>}
+        <h1 className="font-head font-extrabold text-2xl md:text-3xl tracking-tight text-ink leading-tight">
+          {title}
+        </h1>
+        {subtitle && (
+          <p className="text-xs md:text-sm text-muted mt-0.5 leading-relaxed">
+            {subtitle}
+          </p>
+        )}
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+  );
+}
