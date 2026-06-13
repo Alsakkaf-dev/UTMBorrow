@@ -333,3 +333,127 @@ export function PageLoader() {
   );
 }
 
+/* ============================ EmptyState ============================ */
+// Placeholder shown when a list/page has no data: icon, title, subtitle, optional action
+export function EmptyState({ title, subtitle, action, icon, className = "" }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className={`flex flex-col items-center justify-center text-center py-16 px-6 ${className}`}
+    >
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 20 }}
+        className="w-20 h-20 rounded-3xl bg-brand-50 text-brand-500 flex items-center justify-center mb-5 shadow-soft"
+      >
+        <span className="text-3xl">{icon || "✦"}</span>
+      </motion.div>
+      <h3 className="font-head font-bold text-lg text-ink">{title}</h3>
+      {subtitle && <p className="text-sm text-muted mt-1.5 max-w-xs leading-relaxed">{subtitle}</p>}
+      {action && <div className="mt-6">{action}</div>}
+    </motion.div>
+  );
+}
+
+/* ============================ Live indicator ============================ */
+// Connection status dot + label (mirrors the SSE/realtime state)
+export function LiveDot({ status = "live", className = "" }) {
+  const map = {                                              // color + label per state
+    live:       { c: "bg-status-borrowed", label: "Live" },
+    connecting: { c: "bg-status-pending",  label: "Connecting" },
+    offline:    { c: "bg-slate-300",        label: "Offline" },
+  };
+  const s = map[status] || map.offline; // default to offline for unknown values
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted ${className}`}>
+      <span className="relative flex w-2 h-2">
+        {/* pinging ring only when live */}
+        {status === "live" && (
+          <span className={`absolute inline-flex w-full h-full rounded-full ${s.c} opacity-60 animate-ping`} />
+        )}
+        <span className={`relative inline-flex w-2 h-2 rounded-full ${s.c}`} />
+      </span>
+      {s.label}
+    </span>
+  );
+}
+
+/* ============================ ProgressBar ============================ */
+// Horizontal fill bar; value/max -> percentage, `animated` grows it on mount
+export function ProgressBar({ value = 0, max = 100, color = "brand", className = "", animated = true }) {
+  const pct = Math.min(Math.max((value / max) * 100, 0), 100); // clamp to 0–100%
+  const COLORS = {                                             // gradient per color prop
+    brand:   "bg-brand-gradient",
+    success: "bg-success-gradient",
+    amber:   "bg-amber-gradient",
+    danger:  "bg-danger-gradient",
+  };
+  return (
+    <div className={`w-full h-2 rounded-full bg-slate-100 overflow-hidden ${className}`}>
+      <motion.div
+        initial={animated ? { width: 0 } : { width: `${pct}%` }}
+        animate={{ width: `${pct}%` }}
+        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
+        className={`h-full rounded-full ${COLORS[color] || COLORS.brand}`}
+      />
+    </div>
+  );
+}
+
+/* ============================ Modal / Sheet ============================ */
+// Center dialog on desktop, bottom sheet on mobile; renders only while `open`
+export function Modal({ open, onClose, title, children, testid, size = "md" }) {
+  // Trap focus + close on Escape
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === "Escape") onClose?.(); }; // Esc closes the modal
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);   // clean up the listener
+  }, [open, onClose]);
+
+  const maxW = size === "lg" ? "sm:max-w-lg" : size === "sm" ? "sm:max-w-sm" : "sm:max-w-md"; // width per `size`
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center" data-testid={testid}>
+          {/* dim backdrop; clicking it closes the modal */}
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            className="absolute inset-0 bg-ink/45 backdrop-blur-sm"
+            onClick={onClose}
+          />
+          {/* the panel: slides up from the bottom and fades in */}
+          <motion.div
+            initial={{ opacity: 0, y: 52, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0,  scale: 1 }}
+            exit={{ opacity: 0,  y: 36,  scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 340, damping: 32 }}
+            className={`relative bg-surface w-full ${maxW} rounded-t-4xl sm:rounded-4xl border border-line shadow-pop p-6 max-h-[90vh] overflow-y-auto`}
+          >
+            {/* Drag handle (mobile) */}
+            <div className="sm:hidden w-10 h-1 rounded-full bg-line mx-auto mb-4" />
+            {(title || onClose) && (
+              <div className="flex items-start justify-between gap-3 mb-5">
+                {title ? (
+                  <h2 className="font-head font-bold text-xl text-ink leading-tight">{title}</h2>
+                ) : <span />}
+                {onClose && (
+                  <IconButton onClick={onClose} label="Close" className="!w-9 !h-9 shrink-0 -mt-1 -mr-1 bg-canvas hover:bg-slate-100">
+                    <X size={18} />
+                  </IconButton>
+                )}
+              </div>
+            )}
+            {children}
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+}
+
