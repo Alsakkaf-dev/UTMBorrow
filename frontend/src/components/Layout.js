@@ -211,3 +211,84 @@ function BottomNav({ tabs }) {
   );
 }
 
+/* ══════════════════ Top Header ══════════════════ */
+// Sticky top bar: logo + live-connection dot on the left, bell + avatar on the right
+function TopHeader({ user, unread, onBellClick }) {
+  const navigate = useNavigate();
+  const status   = useRealtimeStatus(); // realtime connection state for the LiveDot
+
+  return (
+    <header className="sticky top-0 z-40 glass-strong border-b border-line/60">
+      <div className="max-w-2xl mx-auto px-5 h-16 flex items-center justify-between">
+        {/* Logo (taps back to /home) */}
+        <button
+          onClick={() => navigate("/home")}
+          className="flex items-center gap-2.5"
+          data-testid="app-logo"
+        >
+          <motion.div
+            whileTap={{ scale: 0.92 }}
+            whileHover={{ rotate: [0, -4, 4, 0] }}
+            transition={{ duration: 0.4 }}
+            className="w-9 h-9 bg-brand-gradient rounded-xl flex items-center justify-center shadow-glow-sm"
+          >
+            <span className="text-white font-head font-extrabold text-lg">U</span>
+          </motion.div>
+          <div className="flex flex-col leading-none">
+            <span className="font-head font-extrabold text-[17px] tracking-tight text-ink">UTM Borrow</span>
+            <LiveDot status={status} className="mt-0.5" />
+          </div>
+        </button>
+
+        {/* Right side: Avatar + Bell */}
+        <div className="flex items-center gap-1.5">
+          {/* Notification bell */}
+          <div className="relative">
+            <IconButton
+              onClick={onBellClick}
+              label="Notifications"
+              data-testid="notification-bell"
+              className="relative hover:bg-brand-50"
+            >
+              <Bell size={22} weight="regular" className="text-ink" />
+            </IconButton>
+            {/* red unread-count bubble on the bell (capped at "9+") */}
+            <AnimatePresence>
+              {unread > 0 && (
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 22 }}
+                  className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 bg-status-cancelled text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white pointer-events-none"
+                  data-testid="unread-count"
+                >
+                  {unread > 9 ? "9+" : unread}
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Avatar quick-link to profile */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => navigate("/profile")}
+            className="ml-1"
+            aria-label="Go to profile"
+          >
+            <Avatar
+              name={user?.full_name}
+              src={user?.profile_picture}
+              size={36}
+              className="ring-2 ring-brand-100 shadow-soft"
+            />
+          </motion.button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+
+
+
