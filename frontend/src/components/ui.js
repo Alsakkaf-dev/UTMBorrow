@@ -1133,3 +1133,49 @@ export function PageHeader({
     </div>
   );
 }
+
+
+/* ============================ CountUp number ============================ */
+// Animates a number from 0 up to `to` over `duration` ms (rAF-driven)
+export function CountUp({ to, duration = 1000, className = "" }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    let start = null; // timestamp of the first frame
+    const step = (ts) => {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1); // 0..1 over the duration
+      setDisplay(Math.floor(progress * to));
+      if (progress < 1) requestAnimationFrame(step); // keep going until done
+      else setDisplay(to); // snap to the exact target at the end
+    };
+    requestAnimationFrame(step);
+  }, [to, duration]);
+  return <span className={className}>{display}</span>;
+}
+
+/* ============================ Divider ============================ */
+// Horizontal rule; with a `label` it becomes a centered "— LABEL —" separator
+export function Divider({ label, className = "" }) {
+  if (!label) return <div className={`h-px bg-line my-4 ${className}`} />; // plain line
+  return (
+    <div className={`flex items-center gap-3 my-4 ${className}`}>
+      <div className="flex-1 h-px bg-line" />
+      <span className="text-[11px] font-bold uppercase tracking-widest text-muted">{label}</span>
+      <div className="flex-1 h-px bg-line" />
+    </div>
+  );
+}
+
+/* ============================ InfoRow ============================ */
+// Label-on-left / value-on-right row (with optional icon) for detail lists
+export function InfoRow({ icon, label, value, className = "" }) {
+  return (
+    <div className={`flex items-center justify-between gap-3 py-2.5 border-b border-line last:border-0 ${className}`}>
+      <div className="flex items-center gap-2.5 text-sm text-muted">
+        {icon && <span className="shrink-0">{icon}</span>}
+        <span>{label}</span>
+      </div>
+      <span className="text-sm font-semibold text-ink">{value}</span>
+    </div>
+  );
+}
