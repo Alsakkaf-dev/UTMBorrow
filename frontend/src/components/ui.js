@@ -231,3 +231,105 @@ export function UrgentBadge({ overdue, className = "" }) {
     </span>
   );
 }
+
+/* ============================ Trust Score Ring ============================ */
+// Circular gauge of a 0–5 trust score, with the numeric value in the center
+export function TrustRing({ score = 0, size = 80, strokeWidth = 6, className = "" }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;   // full arc length
+  const pct = Math.min(Math.max(score / 5, 0), 1); // score as 0..1, clamped
+  const offset = circumference * (1 - pct);     // how much of the arc to leave empty
+
+  // Color tiers: green (great) -> indigo -> amber -> red (poor)
+  const color = pct >= 0.8 ? "#10B981" : pct >= 0.6 ? "#6366F1" : pct >= 0.4 ? "#F59E0B" : "#EF4444";
+
+  return (
+    <div className={`relative flex items-center justify-center ${className}`} style={{ width: size, height: size }}>
+      {/* rotate -90deg so the arc starts at the top (12 o'clock) */}
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
+        {/* grey background track */}
+        <circle
+          cx={size / 2} cy={size / 2} r={radius}
+          fill="none" stroke="#E4E7F2" strokeWidth={strokeWidth}
+        />
+        {/* colored progress arc, animated from empty to `offset` */}
+        <motion.circle
+          cx={size / 2} cy={size / 2} r={radius}
+          fill="none" stroke={color} strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+        />
+      </svg>
+      {/* centered score number (overlaid on the ring) */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="font-head font-extrabold text-ink" style={{ fontSize: size * 0.22 }}>
+          {score.toFixed(1)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ Star rating ============================ */
+// 5-star rating; read-only by default, interactive when `editable` (with hover preview)
+export function StarRating({ value = 0, size = 18, onChange, editable = false }) {
+  const [hover, setHover] = useState(0);
+  const stars = [1, 2, 3, 4, 5];
+  const display = editable ? (hover || value) : value; // preview hovered value while editing
+  return (
+    <div className="flex gap-0.5 items-center">
+      {stars.map((s) => {
+        const filled = s <= Math.round(display); // this star is lit if its index <= current value
+        return (
+          <motion.button
+            key={s}
+            type="button"
+            whileTap={editable ? { scale: 1.35 } : undefined}
+            whileHover={editable ? { scale: 1.18 } : undefined}
+            disabled={!editable}
+            onClick={() => editable && onChange && onChange(s)}      // report the picked rating
+            onHoverStart={() => editable && setHover(s)}             // preview on hover
+            onHoverEnd={() => editable && setHover(0)}
+            data-testid={`star-${s}`}
+            className={editable ? "cursor-pointer" : "cursor-default"}
+            aria-label={`${s} star`}
+          >
+            <svg width={size} height={size} viewBox="0 0 24 24"
+              fill={filled ? "#F59E0B" : "none"}
+              stroke={filled ? "#F59E0B" : "#CBD5E1"}
+              strokeWidth="1.5"
+            >
+              <path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7L12 17.8 5.8 21.5l1.6-7L2 9.8l7.1-.6z" />
+            </svg>
+          </motion.button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ============================ Spinner / loaders ============================ */
+// Small inline spinner (one colored edge spinning); used inside buttons, etc.
+export function Spinner({ className = "" }) {
+  return (
+    <div className={`inline-block border-2 border-brand-200 border-t-brand-600 rounded-full animate-spin ${className || "w-5 h-5"}`} />
+  );
+}
+
+// Full-page loading state (centered spinner + "Loading…") for route/data waits
+export function PageLoader() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}  // continuous spin
+        className="w-9 h-9 border-2 border-brand-100 border-t-brand-600 rounded-full"
+      />
+      <p className="text-xs font-semibold text-muted animate-pulse-soft">Loading…</p>
+    </div>
+  );
+}
+
