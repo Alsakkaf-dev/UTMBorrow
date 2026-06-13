@@ -1,0 +1,332 @@
+/* Pull in Tailwind's base reset, component classes, and utility classes */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global CSS variables (design tokens) reused across the custom classes below */
+:root {
+  --ink: #0F172A;
+  --brand: #1E3A8A;
+  --brand-light: #3B82F6;
+  --surface: #ffffff;
+  --canvas: #F8FAFC;
+  --line: #E4E7F2;
+  --muted: #64748B;
+  --radius-card: 1.5rem;
+  --radius-sheet: 2rem;
+  --nav-h: 4.5rem;   /* fixed bottom-nav height, used for layout spacing */
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;  /* no grey flash on tap (mobile) */
+  box-sizing: border-box;
+}
+
+/* Base page styling: background, default text color, and font smoothing */
+html, body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: 'IBM Plex Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+}
+
+/* Deep ambient mesh behind the entire app */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 55% at 100% 0%,  rgba(59,130,246,0.10) 0%, transparent 60%),
+    radial-gradient(50% 50% at 0%  100%, rgba(37,99,235,0.08)  0%, transparent 55%),
+    radial-gradient(35% 35% at 50% 50%, rgba(30,58,138,0.04)   0%, transparent 60%);
+}
+
+/* Headings use the Outfit display font with slightly tighter letter-spacing */
+h1, h2, h3, h4, .font-head {
+  font-family: 'Outfit', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* Brand-colored highlight when selecting text */
+::selection {
+  background: #1E3A8A;
+  color: #fff;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━ SCROLLBAR ━━━━━━━━━━━━━━━━━━━━━ */
+/* Opt-in helper to fully hide the scrollbar on a container */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Slim, rounded custom scrollbar for everything else */
+*::-webkit-scrollbar        { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track  { background: transparent; }
+*::-webkit-scrollbar-thumb  {
+  background: #CBD0E0;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #A8AEC6;
+  background-clip: content-box;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━ TYPOGRAPHY ━━━━━━━━━━━━━━━━━━━━━ */
+.label-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  font-size: 0.67rem;
+  font-weight: 700;
+  color: #64748B;
+}
+
+.display-heading {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━ GLASS SURFACES ━━━━━━━━━━━━━━━━━ */
+/* Frosted-glass backgrounds (blur + saturate what's behind them); variants differ by opacity/tint */
+.glass {
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+}
+
+.glass-dark {
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+.glass-brand {
+  background: rgba(37, 99, 235, 0.14);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(37, 99, 235, 0.22);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(24px) saturate(170%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━ TEXT GRADIENTS ━━━━━━━━━━━━━━━━━ */
+/* Paints text with a gradient by clipping the background to the glyphs */
+.text-gradient {
+  background: linear-gradient(135deg, #3B82F6 0%, #1E3A8A 60%, #1D4ED8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-warm {
+  background: linear-gradient(135deg, #F59E0B 0%, #EF4444 80%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-cool {
+  background: linear-gradient(135deg, #3B82F6 0%, #06B6D4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-success {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━ SKELETON / SHIMMER ━━━━━━━━━━━━━ */
+/* Grey placeholder block shown while content loads */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #EAECF4;
+  border-radius: 0.75rem;
+}
+/* Moving light sweep across the placeholder (the "shimmer") */
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.7) 50%, transparent 100%);
+  animation: shimmer 1.8s infinite;
+}
+
+.skeleton-circle {
+  border-radius: 9999px;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━ ANIMATED GRADIENT SURFACE ━━━━━━━ */
+/* Oversized gradient so the position can be animated (pair with animate-gradient-pan) */
+.bg-animated-brand {
+  background: linear-gradient(120deg, #3B82F6, #1E3A8A, #1D4ED8, #2563EB);
+  background-size: 300% 300%;
+}
+
+.bg-animated-mesh {
+  background: var(--canvas);
+  position: relative;
+}
+.bg-animated-mesh::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 10% 20%, rgba(59,130,246,0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 90% 80%, rgba(37,99,235,0.10) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━ CARD INTERACTIONS ━━━━━━━━━━━━━━━ */
+/* Card raises on hover and presses down slightly on click */
+.card-lift {
+  transition: transform 0.2s cubic-bezier(0.22,1,0.36,1),
+              box-shadow 0.2s cubic-bezier(0.22,1,0.36,1);
+}
+.card-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 2px 4px rgba(15,23,42,0.06), 0 20px 40px -16px rgba(15,23,42,0.24);
+}
+.card-lift:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━ SHINE BUTTON ━━━━━━━━━━━━━━━━━━━━ */
+/* Sweeps a diagonal light streak across the button on hover */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.26) 50%, transparent 65%);
+  background-size: 200% 100%;
+  background-position: -200% center;
+  transition: background-position 0.5s;
+  pointer-events: none;
+}
+.btn-shine:hover::after {
+  background-position: 200% center;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━ TRUST RING SVG ━━━━━━━━━━━━━━━━━━ */
+/* Circular progress ring (trust score): a grey track... */
+.trust-ring-track {
+  stroke: #E4E7F2;
+  fill: none;
+  stroke-width: 6;
+}
+/* ...with a colored arc on top; rotated -90deg so it starts at 12 o'clock,
+   and the fill animates via stroke-dashoffset */
+.trust-ring-fill {
+  fill: none;
+  stroke-width: 6;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset 1.2s cubic-bezier(0.22,1,0.36,1);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━ MESSAGE BUBBLES (Chat) ━━━━━━━━━━━ */
+/* Chat bubbles: "mine" (brand, right side) vs "other" (white, left side).
+   The asymmetric corner radius gives the classic speech-bubble tail;
+   the -grouped variants are for consecutive messages from the same sender */
+.bubble-mine {
+  background: linear-gradient(135deg, #3B82F6 0%, #1E3A8A 100%);
+  color: white;
+  border-radius: 1.25rem 1.25rem 0.35rem 1.25rem;
+}
+.bubble-mine-grouped {
+  border-radius: 1.25rem 1.25rem 0.35rem 1.25rem;
+}
+.bubble-other {
+  background: #ffffff;
+  color: #0F172A;
+  border: 1px solid #E4E7F2;
+  border-radius: 1.25rem 1.25rem 1.25rem 0.35rem;
+}
+.bubble-other-grouped {
+  border-radius: 1.25rem 1.25rem 1.25rem 0.35rem;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━ CATEGORY ICON BADGE ━━━━━━━━━━━━━━ */
+/* Rounded, clickable category filter chip (shrinks slightly when pressed) */
+.category-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px 6px 8px;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.18s cubic-bezier(0.22,1,0.36,1);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  user-select: none;
+}
+.category-pill:active {
+  transform: scale(0.95);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━ NOTIFICATION ACCENT ━━━━━━━━━━━━━━ */
+/* Vertical accent bar marking an unread notification row */
+.notif-unread-bar {
+  position: absolute;
+  inset-y: 0;
+  left: 0;
+  width: 3px;
+  border-radius: 0 999px 999px 0;
+  background: linear-gradient(to bottom, #3B82F6, #1E3A8A);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━ PAGE TRANSITIONS ━━━━━━━━━━━━━━━━━ */
+/* Entrance animation applied when a new page/route mounts */
+.page-enter {
+  animation: slide-up-fade 0.4s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━ QR SCANNER OVERRIDES ━━━━━━━━━━━━ */
+/* Strip the html5-qrcode library's default chrome to match our UI */
+#qr-reader { border: none !important; }
+#qr-reader__dashboard_section_csr button { display: none; }
+#qr-reader video { border-radius: 1.25rem !important; object-fit: cover; }
+#qr-reader img[alt="Info icon"] { display: none; }
+#qr-reader__status_span { display: none !important; }
+#qr-reader__dashboard_section_swaplink { display: none !important; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━ REDUCED MOTION ━━━━━━━━━━━━━━━━━━━ */
+/* Accessibility: near-disable all animation/transition for users who request it */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
