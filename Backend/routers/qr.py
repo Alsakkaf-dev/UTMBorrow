@@ -78,3 +78,90 @@ async def camera_error(user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+@router.post("/scan")
+async def scan(body: ScanIn, user: dict = Depends(get_current_user)):
+    purpose = body.purpose if body.purpose in ("Handover", "Return") else "Handover"
+
+    ok, result, payload = parse_and_verify(body.qr_string)
+    if not ok:
+        await _record_scan(None, None, user["id"], purpose, result, device=body.device_info)
+        msg = "This QR code is not valid." if result == "Invalid_Token" else "This QR code has expired."
+        return {"success": False, "scan_result": result, "message": msg}
+
+    tx_id = payload.get("transaction_id")
+    token = await db.qr_tokens.find_one({"transaction_id": tx_id})
+    tx = await db.transactions.find_one({"id": tx_id})
+    token_id = token["id"] if token else None
+
+    if not token or not tx:
+        await _record_scan(token_id, tx_id, user["id"], purpose, "Invalid_Token", device=body.device_info)
+        return {"success": False, "scan_result": "Invalid_Token", "message": "This QR code is not valid."}
+
+    if token.get("is_revoked"):
+        await _record_scan(token_id, tx_id, user["id"], purpose, "Invalid_Token", device=body.device_info)
+        return {"success": False, "scan_result": "Invalid_Token", "message": "This QR code has been revoked."}
+
+    # The scanner must be the lender of this transaction.
+    if tx["lender_id"] != user["id"]:
+        await _record_scan(token_id, tx_id, user["id"], purpose, "Wrong_Transaction", device=body.device_info)
+        return {"success": False, "scan_result": "Wrong_Transaction",
+                "message": "This QR belongs to a transaction you are not lending."}
+
+    # ---- Handover ----
+    if purpose == "Handover":
+        if tx["status"] == "Borrowed":
+            await _record_scan(token_id, tx_id, user["id"], purpose, "Already_Used", device=body.device_info)
+            return {"success": False, "scan_result": "Already_Used",
+                    "message": "This item has already been handed over."}
+        if tx["status"] != "Approved":
+            await _record_scan(token_id, tx_id, user["id"], purpose, "State_Mismatch", device=body.device_info)
+            return {"success": False, "scan_result": "State_Mismatch",
+                    "message": f"Handover not allowed for a {tx['status']} transaction."}
+        ev = await _record_scan(token_id, tx_id, user["id"], "Handover", "Success", device=body.device_info)
+        await db.transactions.update_one({"id": tx_id}, {"$set": {"status": "Borrowed", "updated_at": iso(now_utc())}})
+        await db.items.update_one({"id": tx["item_id"]}, {"$set": {"availability_status": "Borrowed"}})
+        await db.lease_cycles.update_one(
+            {"transaction_id": tx_id},
+            {"$set": {"transaction_id": tx_id, "handover_scan_event_id": ev["id"],
+                      "handover_timestamp": iso(now_utc()), "lease_status": "Active",
+                      "expected_return_date": tx["borrow_end_date"], "overdue_days": 0,
+                      "updated_at": iso(now_utc())},
+             "$setOnInsert": {"id": new_id(), "return_scan_event_id": None,
+                              "return_timestamp": None, "created_at": iso(now_utc())}},
+            upsert=True)
+        await log_transition(tx_id, "Approved", "Borrowed", user["id"], "QR handover scan")
+        await notify(tx["borrower_id"], "HandoverConfirmed",
+                     "Handover confirmed via QR. Enjoy! Remember to return on time.", transaction_id=tx_id)
+        await broadcaster.publish_to([tx["borrower_id"], tx["lender_id"]], "transaction.updated",
+                                     {"transaction_id": tx_id, "status": "Borrowed", "item_id": tx["item_id"]})
+        await broadcaster.publish("item.updated", {"item_id": tx["item_id"]})
+        return {"success": True, "scan_result": "Success", "message": "Handover confirmed.",
+                "transaction": await enrich_transaction(await db.transactions.find_one({"id": tx_id}))}
+
+    # ---- Return ----
+    if tx["status"] == "Completed":
+        await _record_scan(token_id, tx_id, user["id"], purpose, "Already_Used", device=body.device_info)
+        return {"success": False, "scan_result": "Already_Used",
+                "message": "This loan has already been completed."}
+    if tx["status"] != "Borrowed":
+        await _record_scan(token_id, tx_id, user["id"], purpose, "State_Mismatch", device=body.device_info)
+        return {"success": False, "scan_result": "State_Mismatch",
+                "message": f"Return not allowed for a {tx['status']} transaction."}
+    ev = await _record_scan(token_id, tx_id, user["id"], "Return", "Success", device=body.device_info)
+    await db.transactions.update_one({"id": tx_id}, {"$set": {"status": "Completed", "updated_at": iso(now_utc())}})
+    await db.items.update_one({"id": tx["item_id"]}, {"$set": {"availability_status": "Available"}})
+    await db.lease_cycles.update_one({"transaction_id": tx_id}, {"$set": {
+        "return_scan_event_id": ev["id"], "return_timestamp": iso(now_utc()),
+        "lease_status": "Completed", "updated_at": iso(now_utc())}}, upsert=True)
+    await log_transition(tx_id, "Borrowed", "Completed", user["id"], "QR return scan")
+    await notify(tx["borrower_id"], "ReturnConfirmed",
+                 "Return confirmed via QR. Please rate your lender!", transaction_id=tx_id)
+    await notify(tx["lender_id"], "ReturnConfirmed",
+                 "Item returned. Please rate your borrower!", transaction_id=tx_id)
+    # Item is back in circulation (Borrowed -> Available).
+    await broadcaster.publish("catalog.changed", {"reason": "returned", "item_id": tx["item_id"]})
+    await broadcaster.publish_to([tx["borrower_id"], tx["lender_id"]], "transaction.updated",
+                                 {"transaction_id": tx_id, "status": "Completed", "item_id": tx["item_id"]})
+    return {"success": True, "scan_result": "Success", "message": "Return confirmed.",
+            "rating_prompt": True,
+            "transaction": await enrich_transaction(await db.transactions.find_one({"id": tx_id}))}
