@@ -97,3 +97,115 @@ async def my_borrowing(user: dict = Depends(get_current_user)):
 async def my_lending(user: dict = Depends(get_current_user)):
     txs = await db.transactions.find({"lender_id": user["id"]}).sort("created_at", -1).to_list(500)
     return {"transactions": [await enrich_transaction(t) for t in txs]}
+
+
+
+@router.get("/{tx_id}")
+async def get_tx(tx_id: str, user: dict = Depends(get_current_user)):
+    tx = await db.transactions.find_one({"id": tx_id})
+    if not tx or user["id"] not in (tx["borrower_id"], tx["lender_id"]):
+        raise HTTPException(status_code=404, detail="Transaction not found.")
+    return {"transaction": await enrich_transaction(tx)}
+
+
+@router.post("/{tx_id}/approve")
+async def approve(tx_id: str, user: dict = Depends(get_current_user)):
+    tx = await db.transactions.find_one({"id": tx_id})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found.")
+    if tx["lender_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Only the lender can approve.")
+    if tx["status"] != "Pending":
+        raise HTTPException(status_code=400, detail=f"Cannot approve a {tx['status']} request.")
+    await db.transactions.update_one({"id": tx_id}, {"$set": {
+        "status": "Approved", "approval_timestamp": iso(now_utc()), "updated_at": iso(now_utc())}})
+    await log_transition(tx_id, "Pending", "Approved", user["id"])
+    await notify(tx["borrower_id"], "RequestApproved",
+                 "Your borrow request was approved! Open it to show your QR at handover.",
+                 transaction_id=tx_id)
+    await _broadcast_tx(tx, "Approved")
+    updated = await db.transactions.find_one({"id": tx_id})
+    return {"transaction": await enrich_transaction(updated)}
+
+
+@router.post("/{tx_id}/reject")
+async def reject(tx_id: str, body: ReasonIn, user: dict = Depends(get_current_user)):
+    tx = await db.transactions.find_one({"id": tx_id})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found.")
+    if tx["lender_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Only the lender can reject.")
+    if tx["status"] != "Pending":
+        raise HTTPException(status_code=400, detail=f"Cannot reject a {tx['status']} request.")
+    await db.transactions.update_one({"id": tx_id}, {"$set": {
+        "status": "Rejected", "rejection_reason": (body.reason or "").strip() or None,
+        "updated_at": iso(now_utc())}})
+    await db.items.update_one({"id": tx["item_id"]}, {"$set": {"availability_status": "Available"}})
+    await log_transition(tx_id, "Pending", "Rejected", user["id"], body.reason)
+    await notify(tx["borrower_id"], "RequestRejected",
+                 "Your borrow request was rejected." + (f" Reason: {body.reason}" if body.reason else ""),
+                 transaction_id=tx_id)
+    # Item returned to the catalog (Pending -> Available).
+    await broadcaster.publish("catalog.changed", {"reason": "rejected", "item_id": tx["item_id"]})
+    await _broadcast_tx(tx, "Rejected")
+    # Privacy wipe: erase chat history on rejection.
+    await _wipe_chat(tx_id)
+    await broadcaster.publish_to([tx["borrower_id"], tx["lender_id"]], "chat.cleared",
+                                 {"transaction_id": tx_id})
+    updated = await db.transactions.find_one({"id": tx_id})
+    return {"transaction": await enrich_transaction(updated)}
+
+
+@router.post("/{tx_id}/cancel")
+async def cancel(tx_id: str, body: ReasonIn, user: dict = Depends(get_current_user)):
+    tx = await db.transactions.find_one({"id": tx_id})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found.")
+    if user["id"] not in (tx["borrower_id"], tx["lender_id"]):
+        raise HTTPException(status_code=403, detail="Not your transaction.")
+    if tx["status"] == "Borrowed":
+        raise HTTPException(status_code=400, detail="Cannot cancel once the item has been handed over.")
+    if tx["status"] not in ("Pending", "Approved"):
+        raise HTTPException(status_code=400, detail=f"Cannot cancel a {tx['status']} request.")
+    cancelled_by = "Borrower" if user["id"] == tx["borrower_id"] else "Lender"
+    await db.transactions.update_one({"id": tx_id}, {"$set": {
+        "status": "Cancelled", "cancellation_reason": (body.reason or "").strip() or None,
+        "cancelled_by": cancelled_by, "updated_at": iso(now_utc())}})
+    await db.items.update_one({"id": tx["item_id"]}, {"$set": {"availability_status": "Available"}})
+    await log_transition(tx_id, tx["status"], "Cancelled", user["id"], body.reason)
+    other = tx["lender_id"] if cancelled_by == "Borrower" else tx["borrower_id"]
+    await notify(other, "RequestCancelled",
+                 f"A borrow request was cancelled by the {cancelled_by.lower()}." +
+                 (f" Reason: {body.reason}" if body.reason else ""),
+                 transaction_id=tx_id)
+    # Item returned to the catalog (Pending/Approved -> Available).
+    await broadcaster.publish("catalog.changed", {"reason": "cancelled", "item_id": tx["item_id"]})
+    await _broadcast_tx(tx, "Cancelled")
+    # Privacy wipe: erase chat history on cancellation.
+    await _wipe_chat(tx_id)
+    await broadcaster.publish_to([tx["borrower_id"], tx["lender_id"]], "chat.cleared",
+                                 {"transaction_id": tx_id})
+    updated = await db.transactions.find_one({"id": tx_id})
+    return {"transaction": await enrich_transaction(updated)}
+
+
+@router.post("/{tx_id}/request-return")
+async def request_return(tx_id: str, user: dict = Depends(get_current_user)):
+    """Lender flags that they need the item back — immediately marks the borrower's urgent counter."""
+    tx = await db.transactions.find_one({"id": tx_id})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found.")
+    if tx["lender_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Only the lender can request a return.")
+    if tx["status"] != "Borrowed":
+        raise HTTPException(status_code=400, detail="Item must be actively borrowed to request a return.")
+    await db.transactions.update_one({"id": tx_id},
+                                     {"$set": {"return_requested": True, "updated_at": iso(now_utc())}})
+    await notify(tx["borrower_id"], "ReturnReminder",
+                 "Your lender has requested the item back. Please arrange a return ASAP.",
+                 transaction_id=tx_id)
+    await broadcaster.publish_to([tx["borrower_id"], tx["lender_id"]], "transaction.updated",
+                                 {"transaction_id": tx_id, "status": "Borrowed",
+                                  "return_requested": True, "item_id": tx.get("item_id")})
+    updated = await db.transactions.find_one({"id": tx_id})
+    return {"transaction": await enrich_transaction(updated)}
