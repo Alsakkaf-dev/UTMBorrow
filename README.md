@@ -22,7 +22,7 @@ their reputation.
 
 | # | Module Name | Frontend | Backend |
 |---|-------------|----------|---------|
-| 1 | Authentication | — | **Core modules:**<br>• [security.py](backend/security.py) (JWT + bcrypt) |
+| 1 | Authentication | — | **Core modules:**<br>• [security.py](Backend/security.py) (JWT + bcrypt) |
 | 2 | Profile & Trust Score | — | — |
 | 3 | User Activity Dashboard | — | — |
 
@@ -46,6 +46,6 @@ handover/return, and community moderation.
 
 | # | Module Name | Frontend | Backend |
 |---|-------------|----------|---------|
-| 1 | Request & Approval Workflow | — | **Core modules:**<br>• [tx_common.py](backend/tx_common.py) (state log + enrich)<br>• [notifications.py](backend/notifications.py)<br>• [realtime.py](backend/realtime.py) |
+| 1 | Request & Approval Workflow | — | **Core modules:**<br>• [tx_common.py](Backend/tx_common.py) (state log + enrich)<br>• [notifications.py](Backend/notifications.py)<br>• [realtime.py](Backend/realtime.py) |
 | 2 | QR Verification | — | — |
 | 3 | Community Moderation & Reporting | — | — |
