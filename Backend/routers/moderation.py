@@ -123,3 +123,89 @@ async def report_item(body: ReportIn, user: dict = Depends(get_current_user)):
     return {"report": clean(report)}
 
 
+@router.post("/reports/user")
+async def report_user(body: UserReportIn, user: dict = Depends(get_current_user)):
+    """Report another community member (SRS UC1203). Lands in the same admin
+    moderation queue; admins resolve via dismiss or suspend/ban."""
+    if body.report_category not in REPORT_CATEGORIES:
+        raise HTTPException(status_code=400, detail="Invalid report category.")
+    evidence = _validate_report_extras(body.incident_when, body.evidence, body.confirmed_truthful)
+    target = await db.users.find_one({"id": body.reported_user_id})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found.")
+    if target["id"] == user["id"]:
+        raise HTTPException(status_code=400, detail="You cannot report yourself.")
+    key = _user_report_key(target["id"])
+    if await db.reports.find_one({"reporter_id": user["id"], "reported_item_id": key}):
+        raise HTTPException(status_code=400, detail="You have already reported this user.")
+    report = {
+        "id": new_id(), "reporter_id": user["id"], "reported_item_id": key,
+        "reported_user_id": target["id"], "report_category": body.report_category,
+        "description": (body.description or "").strip() or None, "report_status": "Pending",
+        "incident_when": body.incident_when or None, "evidence": evidence,
+        "confirmed_truthful": True,
+        "reviewed_by_admin_id": None, "reviewed_at": None, "dismissal_note": None,
+        "submitted_at": iso(now_utc()), "created_at": iso(now_utc()), "updated_at": iso(now_utc()),
+    }
+    await db.reports.insert_one(report)
+    await notify(user["id"], "Report_Submitted",
+                 "Your report was submitted and is under review by moderators.",
+                 related_report_id=report["id"])
+    admin_ids = [a["user_id"] async for a in db.admins.find({"is_active": True})]
+    await broadcaster.publish_to(admin_ids, "moderation.changed", {"report_id": report["id"]})
+    return {"report": clean(report)}
+
+
+# ---------------- Reporter: my submissions & status ----------------
+
+@router.get("/reports/mine")
+async def my_reports(user: dict = Depends(get_current_user)):
+    """SRS UC1203 / UC3301 "View Submission Status": the reporter's own
+    submitted reports with their current report_status and submitted_at."""
+    reports = await db.reports.find({"reporter_id": user["id"]}).sort("submitted_at", -1).to_list(200)
+    out = []
+    for r in reports:
+        is_user_report = str(r.get("reported_item_id", "")).startswith("__user__:")
+        target_label = None
+        if is_user_report:
+            target = await db.users.find_one({"id": r.get("reported_user_id")})
+            target_label = target["full_name"] if target else "a member"
+        else:
+            item = await db.items.find_one({"id": r.get("reported_item_id")})
+            target_label = item["title"] if item else "a listing"
+        out.append({
+            "id": r["id"],
+            "report_category": r["report_category"],
+            "report_status": r.get("report_status", "Pending"),
+            "incident_when": r.get("incident_when"),
+            "description": r.get("description"),
+            "evidence_count": len(r.get("evidence") or []),
+            "is_user_report": is_user_report,
+            "target_label": target_label,
+            "submitted_at": r.get("submitted_at"),
+        })
+    return {"reports": out}
+
+
+# ---------------- Admin: queue & review ----------------
+
+async def _report_detail(report: dict) -> dict:
+    report = clean(report)
+    report["is_user_report"] = str(report.get("reported_item_id", "")).startswith("__user__:")
+    item = None if report["is_user_report"] else await db.items.find_one({"id": report["reported_item_id"]})
+    owner = await db.users.find_one({"id": report["reported_user_id"]})
+    reporter = await db.users.find_one({"id": report["reporter_id"]})
+    report["item"] = clean(item) if item else None
+    if owner:
+        owner = clean(owner)
+        owner.pop("password_hash", None)
+    report["owner"] = owner
+    report["reporter"] = {"id": reporter["id"], "full_name": reporter["full_name"]} if reporter else None
+    if owner:
+        owner_txs = await db.transactions.find(
+            {"$or": [{"borrower_id": owner["id"]}, {"lender_id": owner["id"]}]}
+        ).sort("created_at", -1).to_list(50)
+        report["owner_transaction_count"] = len(owner_txs)
+    return report
+
+
