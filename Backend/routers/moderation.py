@@ -209,3 +209,114 @@ async def _report_detail(report: dict) -> dict:
     return report
 
 
+@router.get("/admin/reports")
+async def report_queue(admin: dict = Depends(get_current_admin)):
+    reports = await db.reports.find(
+        {"report_status": {"$in": ["Pending", "Under_Review"]}}
+    ).sort("submitted_at", 1).to_list(200)
+    pending_count = await db.reports.count_documents({"report_status": "Pending"})
+    return {"reports": [await _report_detail(r) for r in reports], "pending_count": pending_count}
+
+
+@router.get("/admin/reports/all")
+async def all_reports(admin: dict = Depends(get_current_admin)):
+    reports = await db.reports.find({}).sort("submitted_at", -1).to_list(200)
+    return {"reports": [await _report_detail(r) for r in reports]}
+
+
+@router.get("/admin/reports/{report_id}")
+async def report_detail(report_id: str, admin: dict = Depends(get_current_admin)):
+    r = await db.reports.find_one({"id": report_id})
+    if not r:
+        raise HTTPException(status_code=404, detail="Report not found.")
+    if r["report_status"] == "Pending":
+        await db.reports.update_one({"id": report_id}, {"$set": {"report_status": "Under_Review"}})
+        r["report_status"] = "Under_Review"
+    return {"report": await _report_detail(r)}
+
+
+async def _moderation_action(report_id, admin, action_type, reason, target_item=None, target_user=None):
+    action = {
+        "id": new_id(), "report_id": report_id, "admin_id": admin["admin_id"],
+        "action_type": action_type, "target_item_id": target_item, "target_user_id": target_user,
+        "reason": reason, "created_at": iso(now_utc()),
+    }
+    await db.moderation_actions.insert_one(action)
+    return action
+
+
+@router.post("/admin/reports/{report_id}/dismiss")
+async def dismiss_report(report_id: str, body: DismissIn, admin: dict = Depends(get_current_admin)):
+    r = await db.reports.find_one({"id": report_id})
+    if not r:
+        raise HTTPException(status_code=404, detail="Report not found.")
+    if r["report_status"] in ("Dismissed", "Actioned"):
+        raise HTTPException(status_code=400, detail="This report was already resolved.")
+    await db.reports.update_one({"id": report_id}, {"$set": {
+        "report_status": "Dismissed", "reviewed_by_admin_id": admin["admin_id"],
+        "reviewed_at": iso(now_utc()), "dismissal_note": (body.note or "").strip() or None,
+        "updated_at": iso(now_utc())}})
+    await _moderation_action(report_id, admin, "Dismiss", body.note or "No violation found.")
+    await notify(r["reporter_id"], "Report_Reviewed",
+                 "Your report was reviewed and dismissed by a moderator.", related_report_id=report_id)
+    return {"ok": True}
+
+
+@router.post("/admin/reports/{report_id}/remove-item")
+async def remove_item(report_id: str, body: RemoveIn, admin: dict = Depends(get_current_admin)):
+    r = await db.reports.find_one({"id": report_id})
+    if not r:
+        raise HTTPException(status_code=404, detail="Report not found.")
+    if r["report_status"] == "Actioned":
+        raise HTTPException(status_code=400, detail="This report was already actioned.")
+    item = await db.items.find_one({"id": r["reported_item_id"]})
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found.")
+    await db.items.update_one({"id": item["id"]}, {"$set": {"availability_status": "Removed"}})
+    await db.reports.update_one({"id": report_id}, {"$set": {
+        "report_status": "Actioned", "reviewed_by_admin_id": admin["admin_id"],
+        "reviewed_at": iso(now_utc()), "updated_at": iso(now_utc())}})
+    await _moderation_action(report_id, admin, "Remove_Item", body.reason,
+                             target_item=item["id"], target_user=item["owner_id"])
+    await notify(item["owner_id"], "Item_Removed",
+                 f"Your listing '{item['title']}' was removed by moderation. Reason: {body.reason}",
+                 related_report_id=report_id)
+    await notify(r["reporter_id"], "Report_Reviewed",
+                 "Action was taken on the item you reported. Thank you.", related_report_id=report_id)
+    await broadcaster.publish("catalog.changed", {"reason": "removed", "item_id": item["id"]})
+    return {"ok": True}
+
+
+@router.post("/admin/reports/{report_id}/suspend-user")
+async def suspend_user(report_id: str, body: SuspendIn, admin: dict = Depends(get_current_admin)):
+    if body.suspension_type not in SUSPENSION_DAYS:
+        raise HTTPException(status_code=400, detail="Invalid suspension type.")
+    r = await db.reports.find_one({"id": report_id})
+    if not r:
+        raise HTTPException(status_code=404, detail="Report not found.")
+    if r["report_status"] == "Actioned":
+        raise HTTPException(status_code=400, detail="This report was already actioned.")
+    target_user = r["reported_user_id"]
+    permanent = body.suspension_type == "Permanent"
+    days = SUSPENSION_DAYS[body.suspension_type]
+    start = now_utc()
+    end = None if permanent else start + timedelta(days=days)
+
+    await db.users.update_one({"id": target_user}, {"$set": {
+        "account_status": "Banned" if permanent else "Suspended"}})
+    await db.reports.update_one({"id": report_id}, {"$set": {
+        "report_status": "Actioned", "reviewed_by_admin_id": admin["admin_id"],
+        "reviewed_at": iso(now_utc()), "updated_at": iso(now_utc())}})
+    action = await _moderation_action(
+        report_id, admin, "Permanent_Ban" if permanent else "Suspend_User",
+        body.reason, target_user=target_user)
+    await db.user_suspensions.insert_one({
+        "id": new_id(), "user_id": target_user, "action_id": action["id"],
+        "suspended_by_admin_id": admin["admin_id"], "suspension_type": body.suspension_type,
+        "start_at": iso(start), "end_at": iso(end) if end else None,
+        "is_active": True, "reason": body.reason, "created_at": iso(now_utc()),
+    })
+    await notify(target_user, "Account_Suspended",
+                 f"Your account has been {'permanently banned' if permanent else f'suspended ({body.suspension_type.replace(chr(95), chr(32))})'}. Reason: {body.reason}",
+                 related_report_id=report_id)
+    return {"ok": True}
