@@ -234,3 +234,36 @@ class TestTransactions:
         r2 = requests.post(f"{BASE}/api/transactions", json=body2, headers=H(tokens["u2"]))
         assert r2.status_code == 400
 
+    def test_borrowing_lending_lists(self, tokens):
+        r = requests.get(f"{BASE}/api/transactions/borrowing", headers=H(tokens["u2"]))
+        assert r.status_code == 200
+        assert len(r.json()["transactions"]) >= 1
+        r = requests.get(f"{BASE}/api/transactions/lending", headers=H(tokens["u1"]))
+        assert r.status_code == 200
+
+    def test_reject_returns_item(self, tokens, user_ids):
+        # create fresh item owned by u1, u2 requests, u1 rejects
+        payload = {"title": f"TEST_REJ_{uuid.uuid4().hex[:6]}", "category": "Other",
+                   "condition": "Good", "location_college": "KTF"}
+        target = requests.post(f"{BASE}/api/items", json=payload, headers=H(tokens["u1"])).json()["item"]
+        from datetime import date, timedelta
+        body = {"item_id": target["id"], "borrow_start_date": date.today().isoformat(),
+                "borrow_end_date": (date.today() + timedelta(days=2)).isoformat()}
+        r = requests.post(f"{BASE}/api/transactions", json=body, headers=H(tokens["u2"]))
+        tx_id = r.json()["transaction"]["id"]
+        r2 = requests.post(f"{BASE}/api/transactions/{tx_id}/reject",
+                           json={"reason": "no"}, headers=H(tokens["u1"]))
+        assert r2.status_code == 200
+        assert r2.json()["transaction"]["status"] == "Rejected"
+        # item back to Available
+        assert requests.get(f"{BASE}/api/items/{target['id']}").json()["item"]["availability_status"] == "Available"
+
+    def test_cancel_blocked_when_borrowed(self, tokens):
+        # T3 is Borrowed (u1 borrower, u3 lender). Try cancel by either side.
+        txs = requests.get(f"{BASE}/api/transactions/borrowing", headers=H(tokens["u1"])).json()["transactions"]
+        borrowed = next(t for t in txs if t["status"] == "Borrowed")
+        r = requests.post(f"{BASE}/api/transactions/{borrowed['id']}/cancel",
+                          json={"reason": "no"}, headers=H(tokens["u1"]))
+        assert r.status_code == 400
+
+
