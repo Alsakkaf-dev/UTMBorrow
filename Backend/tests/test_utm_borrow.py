@@ -430,3 +430,41 @@ class TestModeration:
         assert ds.status_code == 200
 
 
+# ---------- 6. Ratings & Trust ----------
+class TestRatings:
+    def test_submit_rating_for_seeded_completed(self, tokens, user_ids):
+        # T4 is Completed but seed already inserted both ratings.
+        # Verify duplicate rejection.
+        lending = requests.get(f"{BASE}/api/transactions/lending", headers=H(tokens["u3"])).json()["transactions"]
+        completed = next((t for t in lending if t["status"] == "Completed"), None)
+        assert completed
+        r = requests.post(f"{BASE}/api/ratings",
+                          json={"transaction_id": completed["id"], "stars": 5},
+                          headers=H(tokens["u3"]))
+        assert r.status_code == 400  # already rated
+
+    def test_rating_blocked_on_non_completed(self, tokens, user_ids):
+        borrowing = requests.get(f"{BASE}/api/transactions/borrowing", headers=H(tokens["u1"])).json()["transactions"]
+        borrowed = next((t for t in borrowing if t["status"] == "Borrowed"), None)
+        assert borrowed
+        r = requests.post(f"{BASE}/api/ratings",
+                          json={"transaction_id": borrowed["id"], "stars": 5},
+                          headers=H(tokens["u1"]))
+        assert r.status_code == 400
+
+    def test_my_rating_endpoint(self, tokens):
+        lending = requests.get(f"{BASE}/api/transactions/lending", headers=H(tokens["u3"])).json()["transactions"]
+        completed = next(t for t in lending if t["status"] == "Completed")
+        r = requests.get(f"{BASE}/api/ratings/transaction/{completed['id']}/mine",
+                        headers=H(tokens["u3"]))
+        assert r.status_code == 200
+        assert r.json()["rated"] is True
+
+    def test_profile_includes_rating_history(self, user_ids):
+        r = requests.get(f"{BASE}/api/profile/{user_ids['u3']}")
+        assert r.status_code == 200
+        data = r.json()
+        assert "rating_history" in data
+        assert "trust_score" in data["user"]
+
+
