@@ -177,3 +177,22 @@ class TestCatalog:
         assert r2.status_code == 400
 
 
+# ---------- 3. Transactions ----------
+@pytest.fixture(scope="module")
+def fresh_tx(tokens, user_ids):
+    """u1 creates a fresh item; u2 borrows it (idempotent across runs)."""
+    payload = {"title": f"TEST_TX_{uuid.uuid4().hex[:6]}", "category": "Other",
+               "condition": "Good", "location_college": "KTF"}
+    rc = requests.post(f"{BASE}/api/items", json=payload, headers=H(tokens["u1"]))
+    assert rc.status_code == 200, rc.text
+    target = rc.json()["item"]
+    from datetime import date, timedelta
+    body = {"item_id": target["id"],
+            "borrow_start_date": date.today().isoformat(),
+            "borrow_end_date": (date.today() + timedelta(days=3)).isoformat(),
+            "request_message": "Need it"}
+    r = requests.post(f"{BASE}/api/transactions", json=body, headers=H(tokens["u2"]))
+    assert r.status_code == 200, r.text
+    return r.json()["transaction"], target
+
+
