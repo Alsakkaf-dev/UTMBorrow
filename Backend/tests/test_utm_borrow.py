@@ -345,3 +345,40 @@ class TestQR:
                           headers=H(tokens["u1"]))
         assert r.json()["scan_result"] == "Already_Used"
 
+    def test_scan_return_success(self, qr_flow, tokens):
+        r = requests.post(f"{BASE}/api/scan",
+                          json={"qr_string": qr_flow["qr_string"], "purpose": "Return"},
+                          headers=H(tokens["u1"]))
+        assert r.status_code == 200, r.text
+        assert r.json()["success"] is True
+        assert r.json().get("rating_prompt") is True
+        item = requests.get(f"{BASE}/api/items/{qr_flow['item_id']}").json()["item"]
+        assert item["availability_status"] == "Available"
+
+    def test_scan_return_already_completed(self, qr_flow, tokens):
+        r = requests.post(f"{BASE}/api/scan",
+                          json={"qr_string": qr_flow["qr_string"], "purpose": "Return"},
+                          headers=H(tokens["u1"]))
+        assert r.json()["scan_result"] == "Already_Used"
+
+    def test_scan_return_when_approved_only(self, tokens, user_ids):
+        # Build a fresh approved tx, then try Return (state mismatch)
+        payload = {"title": f"TEST_SM_{uuid.uuid4().hex[:6]}", "category": "Other",
+                   "condition": "Good", "location_college": "KTF"}
+        target = requests.post(f"{BASE}/api/items", json=payload, headers=H(tokens["u3"])).json()["item"]
+        from datetime import date, timedelta
+        body = {"item_id": target["id"], "borrow_start_date": date.today().isoformat(),
+                "borrow_end_date": (date.today() + timedelta(days=2)).isoformat()}
+        rq = requests.post(f"{BASE}/api/transactions", json=body, headers=H(tokens["u2"]))
+        assert rq.status_code == 200, rq.text
+        tx_id = rq.json()["transaction"]["id"]
+        requests.post(f"{BASE}/api/transactions/{tx_id}/approve", headers=H(tokens["u3"]))
+        qrs = requests.post(f"{BASE}/api/transactions/{tx_id}/qr", headers=H(tokens["u2"])).json()["qr_string"]
+        r = requests.post(f"{BASE}/api/scan",
+                          json={"qr_string": qrs, "purpose": "Return"},
+                          headers=H(tokens["u3"]))
+        assert r.json()["scan_result"] == "State_Mismatch"
+        # cleanup: cancel
+        requests.post(f"{BASE}/api/transactions/{tx_id}/cancel", json={"reason": "test"}, headers=H(tokens["u3"]))
+
+
