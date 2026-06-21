@@ -382,3 +382,51 @@ class TestQR:
         requests.post(f"{BASE}/api/transactions/{tx_id}/cancel", json={"reason": "test"}, headers=H(tokens["u3"]))
 
 
+# ---------- 5. Moderation ----------
+class TestModeration:
+    def test_non_admin_blocked(self, tokens):
+        r = requests.get(f"{BASE}/api/admin/reports", headers=H(tokens["u1"]))
+        assert r.status_code == 403
+
+    def test_admin_queue(self, tokens, user_ids):
+        # Ensure at least one pending report exists by creating one
+        payload = {"title": f"TEST_Q_{uuid.uuid4().hex[:6]}", "category": "Other",
+                   "condition": "Good", "location_college": "KTF"}
+        target = requests.post(f"{BASE}/api/items", json=payload, headers=H(tokens["u1"])).json()["item"]
+        requests.post(f"{BASE}/api/reports", headers=H(tokens["u2"]), json={
+            "item_id": target["id"], "report_category": "False_Listing"})
+        r = requests.get(f"{BASE}/api/admin/reports", headers=H(tokens["admin"]))
+        assert r.status_code == 200
+        data = r.json()
+        assert "pending_count" in data and data["pending_count"] >= 1
+        assert len(data["reports"]) >= 1
+
+    def test_create_report_and_duplicates(self, tokens, user_ids):
+        # u3 creates a NEW item to report (fresh each run), reported by u2
+        payload = {"title": f"TEST_REPORT_{uuid.uuid4().hex[:6]}", "category": "Other",
+                   "condition": "Good", "location_college": "KTF"}
+        target = requests.post(f"{BASE}/api/items", json=payload, headers=H(tokens["u3"])).json()["item"]
+        body = {"item_id": target["id"], "report_category": "False_Listing",
+                "description": "test report"}
+        r = requests.post(f"{BASE}/api/reports", json=body, headers=H(tokens["u2"]))
+        assert r.status_code == 200, r.text
+        # duplicate
+        r2 = requests.post(f"{BASE}/api/reports", json=body, headers=H(tokens["u2"]))
+        assert r2.status_code == 400
+        # own item rejected (u3 reports their own)
+        r3 = requests.post(f"{BASE}/api/reports", json=body, headers=H(tokens["u3"]))
+        assert r3.status_code == 400
+
+    def test_dismiss_report(self, tokens):
+        queue = requests.get(f"{BASE}/api/admin/reports", headers=H(tokens["admin"])).json()["reports"]
+        pending = next((r for r in queue if r["report_status"] == "Pending"), None) or queue[0]
+        rid = pending["id"]
+        # detail moves to under_review
+        d = requests.get(f"{BASE}/api/admin/reports/{rid}", headers=H(tokens["admin"]))
+        assert d.status_code == 200
+        # dismiss
+        ds = requests.post(f"{BASE}/api/admin/reports/{rid}/dismiss",
+                           json={"note": "test"}, headers=H(tokens["admin"]))
+        assert ds.status_code == 200
+
+
