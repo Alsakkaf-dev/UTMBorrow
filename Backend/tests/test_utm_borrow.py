@@ -294,3 +294,54 @@ def qr_flow(tokens, user_ids):
     return {"tx_id": tx_id, "qr_string": qr_string, "item_id": target["id"]}
 
 
+class TestQR:
+    def test_qr_format_and_idempotent(self, qr_flow, tokens):
+        qr1 = qr_flow["qr_string"]
+        # second generation returns same token
+        q2 = requests.post(f"{BASE}/api/transactions/{qr_flow['tx_id']}/qr", headers=H(tokens["u2"]))
+        assert q2.json()["qr_string"] == qr1
+
+    def test_qr_borrower_only(self, qr_flow, tokens):
+        r = requests.post(f"{BASE}/api/transactions/{qr_flow['tx_id']}/qr", headers=H(tokens["u1"]))
+        assert r.status_code == 403
+
+    def test_scan_invalid_token(self, qr_flow, tokens):
+        r = requests.post(f"{BASE}/api/scan",
+                          json={"qr_string": "UTMB.bad.bad", "purpose": "Handover"},
+                          headers=H(tokens["u1"]))
+        assert r.status_code == 200
+        assert r.json()["scan_result"] == "Invalid_Token"
+
+    def test_scan_tampered_signature(self, qr_flow, tokens):
+        qr = qr_flow["qr_string"]
+        parts = qr.split(".")
+        tampered = f"{parts[0]}.{parts[1]}.{'a' * len(parts[2])}"
+        r = requests.post(f"{BASE}/api/scan",
+                          json={"qr_string": tampered, "purpose": "Handover"},
+                          headers=H(tokens["u1"]))
+        assert r.json()["scan_result"] == "Invalid_Token"
+
+    def test_scan_wrong_user(self, qr_flow, tokens):
+        # u3 is not lender of this tx
+        r = requests.post(f"{BASE}/api/scan",
+                          json={"qr_string": qr_flow["qr_string"], "purpose": "Handover"},
+                          headers=H(tokens["u3"]))
+        assert r.json()["scan_result"] == "Wrong_Transaction"
+
+    def test_scan_handover_success(self, qr_flow, tokens):
+        r = requests.post(f"{BASE}/api/scan",
+                          json={"qr_string": qr_flow["qr_string"], "purpose": "Handover"},
+                          headers=H(tokens["u1"]))
+        assert r.status_code == 200, r.text
+        assert r.json()["success"] is True
+        assert r.json()["scan_result"] == "Success"
+        # tx now Borrowed, item Borrowed
+        item = requests.get(f"{BASE}/api/items/{qr_flow['item_id']}").json()["item"]
+        assert item["availability_status"] == "Borrowed"
+
+    def test_scan_handover_already_used(self, qr_flow, tokens):
+        r = requests.post(f"{BASE}/api/scan",
+                          json={"qr_string": qr_flow["qr_string"], "purpose": "Handover"},
+                          headers=H(tokens["u1"]))
+        assert r.json()["scan_result"] == "Already_Used"
+
