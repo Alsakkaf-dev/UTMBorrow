@@ -42,3 +42,51 @@ class TestAuth:
         assert r.status_code == 200
         assert r.json()["user"]["is_admin"] is True
 
+    def test_register_non_utm_rejected(self):
+        r = requests.post(f"{BASE}/api/auth/register", json={
+            "full_name": "Bad", "matric_no": f"X{uuid.uuid4().hex[:6]}",
+            "email": f"bad{uuid.uuid4().hex[:6]}@gmail.com", "password": PW})
+        assert r.status_code == 400
+        assert "UTM" in r.json()["detail"]
+
+    def test_register_valid_utm_succeeds_and_duplicate_rejected(self):
+        suffix = uuid.uuid4().hex[:8]
+        email = f"test_{suffix}@graduate.utm.my"
+        matric = f"TEST{suffix.upper()}"
+        body = {"full_name": "Test User", "matric_no": matric, "email": email, "password": PW}
+        r = requests.post(f"{BASE}/api/auth/register", json=body)
+        assert r.status_code == 200, r.text
+        assert "token" in r.json()
+        # duplicate email
+        r2 = requests.post(f"{BASE}/api/auth/register", json={**body, "matric_no": f"OTHER{suffix}"})
+        assert r2.status_code == 400
+        # duplicate matric
+        r3 = requests.post(f"{BASE}/api/auth/register",
+                           json={**body, "email": f"other_{suffix}@graduate.utm.my"})
+        assert r3.status_code == 400
+
+    def test_invalid_password(self):
+        r = requests.post(f"{BASE}/api/auth/login",
+                          json={"email": "alsakkaf@graduate.utm.my", "password": "wrong"})
+        assert r.status_code == 401
+
+    def test_forgot_and_reset_password(self):
+        # register a throwaway user
+        suffix = uuid.uuid4().hex[:8]
+        email = f"reset_{suffix}@utm.my"
+        requests.post(f"{BASE}/api/auth/register", json={
+            "full_name": "Reset User", "matric_no": f"RST{suffix.upper()}",
+            "email": email, "password": PW})
+        fr = requests.post(f"{BASE}/api/auth/forgot-password", json={"email": email})
+        assert fr.status_code == 200
+        tok = fr.json().get("recovery_token")
+        assert tok
+        rr = requests.post(f"{BASE}/api/auth/reset-password",
+                           json={"token": tok, "new_password": "NewPass1234"})
+        assert rr.status_code == 200
+        # new pw works
+        r = requests.post(f"{BASE}/api/auth/login",
+                          json={"email": email, "password": "NewPass1234"})
+        assert r.status_code == 200
+
+
