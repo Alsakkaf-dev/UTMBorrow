@@ -196,3 +196,41 @@ def fresh_tx(tokens, user_ids):
     return r.json()["transaction"], target
 
 
+class TestTransactions:
+    def test_request_locks_item(self, fresh_tx, tokens):
+        tx, item = fresh_tx
+        assert tx["status"] == "Pending"
+        # item should now be Pending
+        g = requests.get(f"{BASE}/api/items/{item['id']}")
+        assert g.json()["item"]["availability_status"] == "Pending"
+
+    def test_lender_notified(self, fresh_tx, tokens):
+        r = requests.get(f"{BASE}/api/notifications", headers=H(tokens["u1"]))
+        assert r.status_code == 200
+        kinds = [n.get("notification_type") for n in r.json()["notifications"]]
+        assert "RequestReceived" in kinds
+
+    def test_second_request_conflict(self, fresh_tx, tokens):
+        tx, item = fresh_tx
+        from datetime import date, timedelta
+        body = {"item_id": item["id"], "borrow_start_date": date.today().isoformat(),
+                "borrow_end_date": (date.today() + timedelta(days=2)).isoformat()}
+        r = requests.post(f"{BASE}/api/transactions", json=body, headers=H(tokens["u3"]))
+        assert r.status_code == 409
+
+    def test_invalid_dates(self, tokens):
+        items = requests.get(f"{BASE}/api/items").json()["items"]
+        target = items[0]
+        from datetime import date, timedelta
+        # past start
+        body = {"item_id": target["id"],
+                "borrow_start_date": (date.today() - timedelta(days=1)).isoformat(),
+                "borrow_end_date": (date.today() + timedelta(days=2)).isoformat()}
+        r = requests.post(f"{BASE}/api/transactions", json=body, headers=H(tokens["u2"]))
+        assert r.status_code == 400
+        # end <= start
+        body2 = {"item_id": target["id"], "borrow_start_date": date.today().isoformat(),
+                 "borrow_end_date": date.today().isoformat()}
+        r2 = requests.post(f"{BASE}/api/transactions", json=body2, headers=H(tokens["u2"]))
+        assert r2.status_code == 400
+
