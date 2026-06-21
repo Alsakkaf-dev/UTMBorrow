@@ -468,3 +468,35 @@ class TestRatings:
         assert "trust_score" in data["user"]
 
 
+# ---------- 7. Dashboard ----------
+class TestDashboard:
+    def test_dashboard_summary(self, tokens):
+        # u1 has Arduino borrowed due within 24h
+        r = requests.get(f"{BASE}/api/dashboard", headers=H(tokens["u1"]))
+        assert r.status_code == 200
+        data = r.json()
+        s = data["summary"]
+        assert "total_borrowing" in s and "total_lending" in s
+        assert "pending_requests" in s and "urgent_returns" in s
+        assert s["urgent_returns"] >= 1
+
+
+# ---------- 8. Notifications & Profile ----------
+class TestProfile:
+    def test_notifications_list(self, tokens):
+        r = requests.get(f"{BASE}/api/notifications", headers=H(tokens["u1"]))
+        assert r.status_code == 200
+        data = r.json()
+        assert "notifications" in data and "unread" in data
+
+    def test_read_all(self, tokens):
+        r = requests.post(f"{BASE}/api/notifications/read-all", headers=H(tokens["u1"]))
+        assert r.status_code == 200
+        r2 = requests.get(f"{BASE}/api/notifications", headers=H(tokens["u1"]))
+        assert r2.json()["unread"] == 0
+
+    def test_update_profile(self, tokens):
+        r = requests.put(f"{BASE}/api/profile",
+                         json={"phone_number": "0123456789"}, headers=H(tokens["u2"]))
+        assert r.status_code == 200
+        assert r.json()["user"]["phone_number"] == "0123456789"
