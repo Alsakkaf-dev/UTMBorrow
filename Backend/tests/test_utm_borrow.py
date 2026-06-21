@@ -148,3 +148,32 @@ class TestCatalog:
         g2 = requests.get(f"{BASE}/api/items/{item_id}")
         assert g2.status_code == 404
 
+    def test_edit_blocked_when_pending(self, tokens):
+        # Seeded "Scientific Calculator" is in Pending; find it via /mine of u1
+        r = requests.get(f"{BASE}/api/items/mine", headers=H(tokens["u1"]))
+        pending_items = [i for i in r.json()["items"] if i["availability_status"] == "Pending"]
+        assert pending_items
+        it = pending_items[0]
+        payload = {"title": it["title"], "description": it.get("description") or "x",
+                   "category": it["category"], "condition": it["condition"],
+                   "location_college": it["location_college"],
+                   "location_faculty": it.get("location_faculty")}
+        r = requests.put(f"{BASE}/api/items/{it['id']}", json=payload, headers=H(tokens["u1"]))
+        assert r.status_code == 400
+
+    def test_delete_blocked_when_pending(self, tokens):
+        r = requests.get(f"{BASE}/api/items/mine", headers=H(tokens["u1"]))
+        pending_items = [i for i in r.json()["items"] if i["availability_status"] == "Pending"]
+        assert pending_items
+        r2 = requests.delete(f"{BASE}/api/items/{pending_items[0]['id']}", headers=H(tokens["u1"]))
+        assert r2.status_code == 400
+
+    def test_delete_blocked_when_borrowed(self, tokens):
+        # Seeded Arduino Kit owned by u3 is Borrowed
+        r = requests.get(f"{BASE}/api/items/mine", headers=H(tokens["u3"]))
+        borrowed = [i for i in r.json()["items"] if i["availability_status"] == "Borrowed"]
+        assert borrowed
+        r2 = requests.delete(f"{BASE}/api/items/{borrowed[0]['id']}", headers=H(tokens["u3"]))
+        assert r2.status_code == 400
+
+
