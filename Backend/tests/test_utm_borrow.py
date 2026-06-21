@@ -90,3 +90,61 @@ class TestAuth:
         assert r.status_code == 200
 
 
+# ---------- 2. Catalog ----------
+class TestCatalog:
+    def test_meta(self):
+        r = requests.get(f"{BASE}/api/items/meta")
+        assert r.status_code == 200
+        data = r.json()
+        for k in ("categories", "conditions", "colleges", "faculties"):
+            assert k in data and len(data[k]) > 0
+
+    def test_browse_only_available(self):
+        r = requests.get(f"{BASE}/api/items")
+        assert r.status_code == 200
+        items = r.json()["items"]
+        assert all(i["availability_status"] == "Available" for i in items)
+        # seeded ~5 Available (3 are Pending/Pending/Borrowed; 1 unrelated)
+        assert len(items) >= 4
+
+    def test_browse_filters(self):
+        r = requests.get(f"{BASE}/api/items", params={"category": "Electronics"})
+        assert r.status_code == 200
+        for it in r.json()["items"]:
+            assert it["category"] == "Electronics"
+        r2 = requests.get(f"{BASE}/api/items", params={"q": "lab"})
+        assert r2.status_code == 200
+
+    def test_create_edit_delete(self, tokens, user_ids):
+        payload = {"title": "TEST_Item", "description": "test", "category": "Other",
+                   "condition": "Good", "location_college": "KTF", "location_faculty": "FC"}
+        r = requests.post(f"{BASE}/api/items", json=payload, headers=H(tokens["u1"]))
+        assert r.status_code == 200, r.text
+        item = r.json()["item"]
+        assert item["availability_status"] == "Available"
+        assert item["owner_id"] == user_ids["u1"]
+        item_id = item["id"]
+
+        # GET to verify
+        g = requests.get(f"{BASE}/api/items/{item_id}")
+        assert g.status_code == 200
+        assert g.json()["item"]["title"] == "TEST_Item"
+
+        # Edit
+        upd = {**payload, "title": "TEST_Item_Updated"}
+        r = requests.put(f"{BASE}/api/items/{item_id}", json=upd, headers=H(tokens["u1"]))
+        assert r.status_code == 200
+        assert r.json()["item"]["title"] == "TEST_Item_Updated"
+
+        # mine
+        r = requests.get(f"{BASE}/api/items/mine", headers=H(tokens["u1"]))
+        assert r.status_code == 200
+        assert any(i["id"] == item_id for i in r.json()["items"])
+
+        # Delete own item
+        r = requests.delete(f"{BASE}/api/items/{item_id}", headers=H(tokens["u1"]))
+        assert r.status_code == 200
+        # 404 after delete
+        g2 = requests.get(f"{BASE}/api/items/{item_id}")
+        assert g2.status_code == 404
+
