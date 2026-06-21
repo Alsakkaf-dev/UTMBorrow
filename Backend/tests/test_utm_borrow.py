@@ -267,3 +267,30 @@ class TestTransactions:
         assert r.status_code == 400
 
 
+# ---------- 4. QR (CRITICAL) ----------
+@pytest.fixture(scope="module")
+def qr_flow(tokens, user_ids):
+    """Build full QR flow: borrower=u2, lender=u1, fresh item created by u1."""
+    payload = {"title": f"TEST_QR_{uuid.uuid4().hex[:6]}", "category": "Formal Wear",
+               "condition": "Good", "location_college": "KTF"}
+    rc = requests.post(f"{BASE}/api/items", json=payload, headers=H(tokens["u1"]))
+    assert rc.status_code == 200, rc.text
+    target = rc.json()["item"]
+    items = []  # unused now
+    from datetime import date, timedelta
+    body = {"item_id": target["id"], "borrow_start_date": date.today().isoformat(),
+            "borrow_end_date": (date.today() + timedelta(days=2)).isoformat()}
+    r = requests.post(f"{BASE}/api/transactions", json=body, headers=H(tokens["u2"]))
+    assert r.status_code == 200, r.text
+    tx_id = r.json()["transaction"]["id"]
+    # approve
+    a = requests.post(f"{BASE}/api/transactions/{tx_id}/approve", headers=H(tokens["u1"]))
+    assert a.status_code == 200
+    # generate QR (borrower)
+    q = requests.post(f"{BASE}/api/transactions/{tx_id}/qr", headers=H(tokens["u2"]))
+    assert q.status_code == 200, q.text
+    qr_string = q.json()["qr_string"]
+    assert qr_string.startswith("UTMB.")
+    return {"tx_id": tx_id, "qr_string": qr_string, "item_id": target["id"]}
+
+
