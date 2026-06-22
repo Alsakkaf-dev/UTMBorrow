@@ -13,19 +13,6 @@ This repository is the **Coding Phase** deliverable — the reorganized, simplif
 specified in our **Proposal**, **SRS**, and **SDD**, grouped by the **three subsystems / nine modules**
 those documents define.
 
-> ### ℹ️ Current repository state — updated 22 Jun 2026
-> Two of the three subsystems are pushed and present, on top of the shared foundation:
-> - 🟧 **Transaction & Handover** + Admin Portal — *Mohammed* — **present**
-> - 🟩 **Resource Catalog & Discovery** — *Muaz* — **present**
-> - 🟦 **Identity & User Management** — *Ahmat* — **pending (not yet pushed by its owner)**
->
-> Because `backend/server.py` mounts every subsystem's router, the **backend will only start once the
-> Identity subsystem is added**. The per-subsystem `docs/` pages are also still pending. Below, file
-> names link to source **only when the file is already in this repository**; pending files are listed
-> as plain text.
-
----
-
 ## Team & Subsystem Ownership
 
 | Subsystem | Developer | Matric |
