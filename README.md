@@ -196,11 +196,3 @@ npm install
 copy .env.example .env          # REACT_APP_BACKEND_URL=http://localhost:8000
 npm start
 ```
-
----
-
-## How This Maps to the SRS & SDD
-- **Three subsystems / nine modules** (SRS §1.4, SDD §3–5) → the three `frontend/src/pages/` subsystem folders and their grouped backend routers, as tabled above.
-- **Use-case flows** (register, login, list/edit/remove item, filter, request/approve/cancel, QR handover/return, report/review/enforce) are implemented by the screens and routers listed per module.
-- **Data design** (Users, Items, Transactions, QR_Tokens, Scan_Events, Lease_Cycles, Reports, Moderation_Actions, Notifications) is realized as MongoDB collections written by the corresponding routers.
-- **Architecture** (SDD §2.1): three-tier client–server — React presentation tier → FastAPI application/business-logic tier (REST + SSE) → MongoDB data tier.
