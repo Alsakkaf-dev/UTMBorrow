@@ -18,6 +18,7 @@ async def ensure_indexes():
     await db.items.create_index("id", unique=True)
     await db.transactions.create_index("id", unique=True)
     await db.reports.create_index([("reporter_id", 1), ("reported_item_id", 1)], unique=True)
+    await db.user_ratings.create_index([("transaction_id", 1), ("rater_id", 1)], unique=True)
     await db.notifications.create_index("recipient_user_id")
     await db.admin_audit.create_index("created_at")
     await db.penalties.create_index("user_id")
