@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, Trash, UserMinus, Prohibit, Warning, ArrowSquareOut, ArrowRight } from "@phosphor-icons/react";
-import { api, formatApiError } from "../../lib/api";
+import { api, adminApi, formatApiError } from "../../lib/api";
 import { Button, Modal, Textarea, Select, PageLoader, StatusBadge, StarRating, Avatar } from "../../components/ui";
 import { toast } from "../../components/Toast";
 
@@ -208,14 +208,14 @@ export default function ReportDetail() {
       {/* Dismiss */}
       <Modal open={dismissOpen} onClose={() => setDismissOpen(false)} title="Dismiss report" testid="dismiss-modal">
         <Textarea label="Note (optional)" rows={3} value={note} onChange={(e) => setNote(e.target.value)} data-testid="dismiss-note" />
-        <Button className="w-full mt-5" loading={busy} onClick={() => run(() => api.post(`/admin/reports/${reportId}/dismiss`, { note }), "Report dismissed.")} disabled={busy} data-testid="dismiss-confirm">Dismiss</Button>
+        <Button className="w-full mt-5" loading={busy} onClick={() => run(() => adminApi.post(`/admin/reports/${reportId}/dismiss`, { note }), "Report dismissed.")} disabled={busy} data-testid="dismiss-confirm">Dismiss</Button>
       </Modal>
 
       {/* Remove item */}
       <Modal open={removeOpen} onClose={() => setRemoveOpen(false)} title="Remove item" testid="remove-modal">
         {itemBorrowed && <div className="bg-amber-50 border border-amber-100 text-amber-800 text-sm rounded-2xl px-3.5 py-2.5 mb-3 flex items-start gap-2" data-testid="active-loan-warning"><Warning size={18} weight="fill" className="shrink-0 mt-0.5" /> This item is currently on an active loan. Removing it will override the active transaction.</div>}
         <Textarea label="Reason (required)" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} data-testid="remove-reason" />
-        <Button variant="danger" className="w-full mt-5" loading={busy} onClick={() => run(() => api.post(`/admin/reports/${reportId}/remove-item`, { reason }), "Item removed.")} disabled={busy || reason.trim().length < 2} data-testid="remove-confirm">Remove item</Button>
+        <Button variant="danger" className="w-full mt-5" loading={busy} onClick={() => run(() => adminApi.post(`/admin/reports/${reportId}/remove-item`, { reason }), "Item removed.")} disabled={busy || reason.trim().length < 2} data-testid="remove-confirm">Remove item</Button>
       </Modal>
 
       {/* Suspend */}
@@ -229,7 +229,7 @@ export default function ReportDetail() {
         <div className="mt-3">
           <Textarea label="Reason (required)" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} data-testid="suspend-reason" />
         </div>
-        <Button variant="danger" className="w-full mt-5" loading={busy} onClick={() => run(() => api.post(`/admin/reports/${reportId}/suspend-user`, { suspension_type: suspType, reason }), "Enforcement applied.")} disabled={busy || reason.trim().length < 2} data-testid="suspend-confirm">
+        <Button variant="danger" className="w-full mt-5" loading={busy} onClick={() => run(() => adminApi.post(`/admin/reports/${reportId}/suspend-user`, { suspension_type: suspType, reason }), "Enforcement applied.")} disabled={busy || reason.trim().length < 2} data-testid="suspend-confirm">
           <Prohibit size={16} weight="bold" /> Apply {suspType.replace(/_/g, " ")}
         </Button>
       </Modal>
