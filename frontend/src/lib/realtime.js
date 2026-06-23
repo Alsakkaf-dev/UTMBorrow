@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const BASE = process.env.REACT_APP_BACKEND_URL;
+const BASE = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
 
 const EVENT_TYPES = [
   "connected",
