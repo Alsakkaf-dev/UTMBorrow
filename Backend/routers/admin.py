@@ -55,6 +55,14 @@ ROLE_PERMISSIONS = {
 DEFAULT_PERMISSIONS = ROLE_PERMISSIONS["Senior_Moderator"]
 
 
+def _require_senior(admin: dict):
+    """Gate the most destructive actions to Senior_Moderator, matching the
+    ROLE_PERMISSIONS table (permanent deletes + force cancel/complete)."""
+    if admin.get("admin_role") != "Senior_Moderator":
+        raise HTTPException(status_code=403,
+                            detail="Senior moderator privileges are required for this action.")
+
+
 async def log_admin_action(admin: dict, action_type: str, summary: str,
                            target_user_id: str = None, target_item_id: str = None,
                            target_transaction_id: str = None, meta: dict = None):
@@ -256,6 +264,7 @@ async def admin_tx_detail(tx_id: str, admin: dict = Depends(get_admin_session)):
 
 @router.post("/transactions/{tx_id}/force-cancel")
 async def force_cancel(tx_id: str, body: ReasonIn, admin: dict = Depends(get_admin_session)):
+    _require_senior(admin)
     tx = await db.transactions.find_one({"id": tx_id})
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found.")
@@ -280,6 +289,7 @@ async def force_cancel(tx_id: str, body: ReasonIn, admin: dict = Depends(get_adm
 
 @router.post("/transactions/{tx_id}/force-complete")
 async def force_complete(tx_id: str, body: ReasonIn, admin: dict = Depends(get_admin_session)):
+    _require_senior(admin)
     tx = await db.transactions.find_one({"id": tx_id})
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found.")
@@ -489,6 +499,7 @@ async def _purge_transactions(tx_ids: list):
 @router.delete("/items/{item_id}")
 async def delete_item(item_id: str, admin: dict = Depends(get_admin_session)):
     """Permanently delete a listing and everything tied to it."""
+    _require_senior(admin)
     item = await db.items.find_one({"id": item_id})
     if not item:
         raise HTTPException(status_code=404, detail="Item not found.")
@@ -515,6 +526,7 @@ async def delete_item(item_id: str, admin: dict = Depends(get_admin_session)):
 @router.delete("/users/{user_id}")
 async def delete_user(user_id: str, admin: dict = Depends(get_admin_session)):
     """Permanently delete a user, their listings, and all of their activity."""
+    _require_senior(admin)
     target = await db.users.find_one({"id": user_id})
     if not target:
         raise HTTPException(status_code=404, detail="User not found.")
