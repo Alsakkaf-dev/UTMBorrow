@@ -101,7 +101,13 @@ async def submit_rating(body: RatingIn, user: dict = Depends(get_current_user)):
         "stars": body.stars,
         "feedback": (body.feedback or "").strip() or None, "created_at": iso(now_utc()),
     }
-    await db.user_ratings.insert_one(rating)
+    # Race-proof the one-rating-per-party rule with the unique index, so two
+    # near-simultaneous submits can't both slip past the find_one check above.
+    from pymongo.errors import DuplicateKeyError
+    try:
+        await db.user_ratings.insert_one(rating)
+    except DuplicateKeyError:
+        raise HTTPException(status_code=400, detail="You already rated this transaction.")
     new_avg = await recompute_trust_score(ratee_id)
     await notify(ratee_id, "RatingReceived",
                  f"You received a {body.stars}-star rating.", transaction_id=body.transaction_id)
