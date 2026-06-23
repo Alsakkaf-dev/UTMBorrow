@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 from database import db, new_id, now_utc, iso, clean
-from security import get_current_user, get_current_admin
+from security import get_current_user, get_current_admin, get_admin_session
 from notifications import notify
 from realtime import broadcaster
 
@@ -246,7 +246,7 @@ async def _moderation_action(report_id, admin, action_type, reason, target_item=
 
 
 @router.post("/admin/reports/{report_id}/dismiss")
-async def dismiss_report(report_id: str, body: DismissIn, admin: dict = Depends(get_current_admin)):
+async def dismiss_report(report_id: str, body: DismissIn, admin: dict = Depends(get_admin_session)):
     r = await db.reports.find_one({"id": report_id})
     if not r:
         raise HTTPException(status_code=404, detail="Report not found.")
@@ -263,7 +263,7 @@ async def dismiss_report(report_id: str, body: DismissIn, admin: dict = Depends(
 
 
 @router.post("/admin/reports/{report_id}/remove-item")
-async def remove_item(report_id: str, body: RemoveIn, admin: dict = Depends(get_current_admin)):
+async def remove_item(report_id: str, body: RemoveIn, admin: dict = Depends(get_admin_session)):
     r = await db.reports.find_one({"id": report_id})
     if not r:
         raise HTTPException(status_code=404, detail="Report not found.")
@@ -288,7 +288,7 @@ async def remove_item(report_id: str, body: RemoveIn, admin: dict = Depends(get_
 
 
 @router.post("/admin/reports/{report_id}/suspend-user")
-async def suspend_user(report_id: str, body: SuspendIn, admin: dict = Depends(get_current_admin)):
+async def suspend_user(report_id: str, body: SuspendIn, admin: dict = Depends(get_admin_session)):
     if body.suspension_type not in SUSPENSION_DAYS:
         raise HTTPException(status_code=400, detail="Invalid suspension type.")
     r = await db.reports.find_one({"id": report_id})
