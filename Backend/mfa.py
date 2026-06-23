@@ -73,7 +73,9 @@ def provisioning_uri(secret_b32: str, account_name: str) -> str:
 def dev_hint_enabled() -> bool:
     """Whether to surface the live code in API responses (DEV ONLY).
 
-    Defaults ON in development so the portal is testable without an
-    authenticator app. Set ADMIN_MFA_DEV_HINT=0 in production to disable.
+    Fail-safe: defaults OFF so a production deploy never leaks the live TOTP
+    (which would collapse the admin step-up to a single factor). The local
+    .env template opts in with ADMIN_MFA_DEV_HINT=1 so the portal stays
+    testable without an authenticator app during development.
     """
-    return os.environ.get("ADMIN_MFA_DEV_HINT", "1") == "1"
+    return os.environ.get("ADMIN_MFA_DEV_HINT", "0") == "1"
