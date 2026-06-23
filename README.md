@@ -38,24 +38,19 @@ The stack matches the **SDD §1.4 — Technology and Tool Used** exactly.
 Each subsystem owns **three modules** (nine modules total — SRS §1.4). For every module the table lists
 its **Frontend** (screens + components) and **Backend** (routers + core modules).
 
-## Identity & User Management Subsystem &nbsp; ⏳ *pending — not yet pushed (owner: Ahmat)*
+## Identity & User Management Subsystem
 Foundational security and accountability layer: who can enter the system, their public identity, and
 their reputation.
 
 **Developer: AHMAT MAHAMAT MOURDJI MOUSTAPHA**
 
-> The files below are **not yet in this repository** — they are pending the owner's commit, so they are
-> listed as plain text (not links). The only piece already present is the shared
-> [`security.py`](backend/security.py) JWT/bcrypt core (built with the foundation).
-
-| # | Module Name | Frontend (pending) | Backend (pending) |
+| # | Module Name | Frontend | Backend |
 |---|-------------|----------|---------|
-| 1 | Authentication | Login.js · Register.js · ForgotPassword.js · ResetPassword.js · AuthShell.js | auth.py · mfa.py (TOTP 2FA) · emailer.py — plus shared [security.py](backend/security.py) |
-| 2 | Profile & Trust Score | Profile.js · PublicProfile.js · Reputation.js · RatingDialog.js | profile.py · ratings.py |
-| 3 | User Activity Dashboard | Dashboard.js · ActiveLoanBanner.js · UrgentBanner.js | dashboard.py |
+| 1 | Authentication | **Screens:**<br>• [Login](frontend/src/pages/identity/Login.js)<br>• [Register](frontend/src/pages/identity/Register.js)<br>• [ForgotPassword](frontend/src/pages/identity/ForgotPassword.js)<br>• [ResetPassword](frontend/src/pages/identity/ResetPassword.js)<br>• [AuthShell](frontend/src/pages/identity/AuthShell.js) | **Routers:**<br>• [auth.py](backend/routers/auth.py)<br><br>**Core modules:**<br>• [mfa.py](backend/mfa.py) (TOTP 2FA)<br>• [emailer.py](backend/emailer.py)<br>• [security.py](backend/security.py) (shared) |
+| 2 | Profile & Trust Score | **Screens:**<br>• [Profile](frontend/src/pages/identity/Profile.js)<br>• [PublicProfile](frontend/src/pages/identity/PublicProfile.js)<br>• [Reputation](frontend/src/pages/identity/Reputation.js)<br><br>**Components:**<br>• [RatingDialog](frontend/src/components/RatingDialog.js) | **Routers:**<br>• [profile.py](backend/routers/profile.py)<br>• [ratings.py](backend/routers/ratings.py) |
+| 3 | User Activity Dashboard | **Screens:**<br>• [Dashboard](frontend/src/pages/identity/Dashboard.js)<br><br>**Components:**<br>• [ActiveLoanBanner](frontend/src/components/ActiveLoanBanner.js)<br>• [UrgentBanner](frontend/src/components/UrgentBanner.js) | **Routers:**<br>• [dashboard.py](backend/routers/dashboard.py) |
 
-**Supporting account-management screens (pending):** SettingsHub.js · SettingsSecurity.js ·
-NotificationPreferences.js · HelpSupport.js · Governance.js · MyReports.js — backed by `support.py`.
+**Supporting account-management screens:** [SettingsHub](frontend/src/pages/identity/SettingsHub.js) · [SettingsSecurity](frontend/src/pages/identity/SettingsSecurity.js) · [NotificationPreferences](frontend/src/pages/identity/NotificationPreferences.js) · [HelpSupport](frontend/src/pages/identity/HelpSupport.js) · [Governance](frontend/src/pages/identity/Governance.js) · [MyReports](frontend/src/pages/identity/MyReports.js) — backed by [support.py](backend/routers/support.py).
 
 ## Resource Catalog & Discovery Subsystem
 The browsing and search engine: publishing listings and finding items by category, condition and
@@ -81,19 +76,7 @@ handover/return, and community moderation.
 | 2 | QR Verification | **Screens:**<br>• [Scanner](frontend/src/pages/transaction/Scanner.js) | **Routers:**<br>• [qr.py](backend/routers/qr.py)<br><br>**Core modules:**<br>• [qr_engine.py](backend/qr_engine.py) (HMAC-SHA256 tokens) |
 | 3 | Community Moderation & Reporting | **Screens:**<br>• [Moderation](frontend/src/pages/transaction/Moderation.js)<br>• [ReportDetail](frontend/src/pages/transaction/ReportDetail.js)<br>• [Chat](frontend/src/pages/transaction/Chat.js)<br><br>**Components:**<br>• [ReportModal](frontend/src/components/ReportModal.js)<br><br>**Admin Portal (15 screens):**<br>• [AdminLayout](frontend/src/pages/admin/AdminLayout.js) · [AdminOverview](frontend/src/pages/admin/AdminOverview.js) · [AdminInbox](frontend/src/pages/admin/AdminInbox.js) · [AdminReports](frontend/src/pages/admin/AdminReports.js) · [AdminTransactions](frontend/src/pages/admin/AdminTransactions.js) · [AdminTransactionDetail](frontend/src/pages/admin/AdminTransactionDetail.js) · [AdminUsers](frontend/src/pages/admin/AdminUsers.js) · [AdminUserDetail](frontend/src/pages/admin/AdminUserDetail.js) · [AdminOverdue](frontend/src/pages/admin/AdminOverdue.js) · [AdminScan](frontend/src/pages/admin/AdminScan.js) · [AdminAudit](frontend/src/pages/admin/AdminAudit.js) · [AdminAnalytics](frontend/src/pages/admin/AdminAnalytics.js) · [AdminProfile](frontend/src/pages/admin/AdminProfile.js) · [AdminElevate](frontend/src/pages/admin/AdminElevate.js) · [AdminCommandPalette](frontend/src/pages/admin/AdminCommandPalette.js) | **Routers:**<br>• [moderation.py](backend/routers/moderation.py)<br>• [admin.py](backend/routers/admin.py)<br>• [chat.py](backend/routers/chat.py)<br><br>**Core modules:**<br>• [crypto_box.py](backend/crypto_box.py) (chat encryption)<br>• `mfa.py` — admin TOTP step-up *(pending, ships with Identity)* |
 
-## Identity & User Management Subsystem
-Foundational security and accountability layer: who can enter the system, their public identity, and
-their reputation.
 
-**Developer: AHMAT MAHAMAT MOURDJI MOUSTAPHA**
-
-| # | Module Name | Frontend | Backend |
-|---|-------------|----------|---------|
-| 1 | Authentication | **Screens:**<br>• [Login](frontend/src/pages/identity/Login.js)<br>• [Register](frontend/src/pages/identity/Register.js)<br>• [ForgotPassword](frontend/src/pages/identity/ForgotPassword.js)<br>• [ResetPassword](frontend/src/pages/identity/ResetPassword.js)<br>• [AuthShell](frontend/src/pages/identity/AuthShell.js) | **Routers:**<br>• [auth.py](backend/routers/auth.py)<br><br>**Core modules:**<br>• [mfa.py](backend/mfa.py) (TOTP 2FA)<br>• [emailer.py](backend/emailer.py)<br>• [security.py](backend/security.py) (shared) |
-| 2 | Profile & Trust Score | **Screens:**<br>• [Profile](frontend/src/pages/identity/Profile.js)<br>• [PublicProfile](frontend/src/pages/identity/PublicProfile.js)<br>• [Reputation](frontend/src/pages/identity/Reputation.js)<br><br>**Components:**<br>• [RatingDialog](frontend/src/components/RatingDialog.js) | **Routers:**<br>• [profile.py](backend/routers/profile.py)<br>• [ratings.py](backend/routers/ratings.py) |
-| 3 | User Activity Dashboard | **Screens:**<br>• [Dashboard](frontend/src/pages/identity/Dashboard.js)<br><br>**Components:**<br>• [ActiveLoanBanner](frontend/src/components/ActiveLoanBanner.js)<br>• [UrgentBanner](frontend/src/components/UrgentBanner.js) | **Routers:**<br>• [dashboard.py](backend/routers/dashboard.py) |
-
-**Supporting account-management screens:** [SettingsHub](frontend/src/pages/identity/SettingsHub.js) · [SettingsSecurity](frontend/src/pages/identity/SettingsSecurity.js) · [NotificationPreferences](frontend/src/pages/identity/NotificationPreferences.js) · [HelpSupport](frontend/src/pages/identity/HelpSupport.js) · [Governance](frontend/src/pages/identity/Governance.js) · [MyReports](frontend/src/pages/identity/MyReports.js) — backed by [support.py](backend/routers/support.py).
 ---
 
 ## Subsystem Ownership Map
