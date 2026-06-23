@@ -15,12 +15,6 @@ const REPUTATION_FACTORS = [
     { label: "Cancelled after approval", delta: "-10", positive: false },
 ];
 
-const MOCK_HISTORY = [
-    { id: "m1", title: "On-time return", delta: "+10", date: "2026-05-20", detail: "Returned textbook before due date" },
-    { id: "m2", title: "Positive rating", delta: "+5", date: "2026-05-18", detail: "5-star rating from Muaz A." },
-    { id: "m3", title: "Completed exchange", delta: "+3", date: "2026-05-10", detail: "Lab tools handover confirmed" },
-];
-
 function formatDate(iso) {
     if (!iso) return "";
     try {
@@ -63,7 +57,7 @@ export default function Reputation() {
             date: r.created_at,
             detail: r.feedback || `Rated ${r.stars} stars by ${r.rater_name}`,
         }))
-        : MOCK_HISTORY;
+        : [];
 
     return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
@@ -129,6 +123,11 @@ export default function Reputation() {
             {/* History timeline */}
             <h2 className="font-head font-bold text-lg mb-3">History</h2>
             <div className="space-y-3 mb-6">
+                {timeline.length === 0 && (
+                    <div className="bg-surface border border-line rounded-3xl p-4 shadow-card text-sm text-muted" data-testid="reputation-empty">
+                        No reputation history yet — complete a borrow or return to start building your record.
+                    </div>
+                )}
                 {timeline.map((entry, i) => (
                     <motion.div
                         key={entry.id}
