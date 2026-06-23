@@ -228,7 +228,7 @@ async def setup_2fa(user: dict = Depends(get_current_user)):
     secret = mfa_lib.generate_secret()
     # Persist tentative secret; becomes active on /2fa/verify-enable
     await db.users.update_one({"id": user["id"]}, {"$set": {"mfa_pending_secret": secret}})
-    uri = mfa_lib.provisioning_uri(secret, user["email"], issuer="UTM Borrow")
+    uri = mfa_lib.provisioning_uri(secret, user["email"])
     return {"secret": secret, "provisioning_uri": uri}
 
 
