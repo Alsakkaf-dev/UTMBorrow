@@ -162,6 +162,11 @@ async def report_conversation(tx_id: str, body: ChatReportIn, user: dict = Depen
     if body.report_category not in REPORT_CATEGORIES:
         raise HTTPException(status_code=400, detail="Invalid report category.")
     other_id = tx["lender_id"] if user["id"] == tx["borrower_id"] else tx["borrower_id"]
+    # Block duplicates: the unique (reporter_id, reported_item_id) index would
+    # otherwise raise an unhandled DuplicateKeyError (HTTP 500) if this person
+    # was already reported here or via the user-report endpoint.
+    if await db.reports.find_one({"reporter_id": user["id"], "reported_item_id": f"__user__:{other_id}"}):
+        raise HTTPException(status_code=400, detail="You have already reported this user.")
     evidence = (body.evidence or [])[:3]   # cap attachments, same as item/user reports
     # Shape mirrors moderation's user-report schema so it flows through the
     # existing queue + ReportDetail UI, plus carries the transaction link that
