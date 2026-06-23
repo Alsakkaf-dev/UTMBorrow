@@ -58,13 +58,11 @@ campus location.
 
 **Developer: MUAZ IBNE AHMED**
 
-| # | Module Name | Frontend | Backend |
-|---|-------------|----------|---------|
-| 1 | Item Listing & Management | **Screens:**<br>• [Lend (My Listings)](frontend/src/pages/resource/Lend.js)<br>• [ItemForm (Add/Edit)](frontend/src/pages/resource/ItemForm.js)<br>• [ItemDetail](frontend/src/pages/resource/ItemDetail.js)<br><br>**Components:**<br>• [ItemCard](frontend/src/components/ItemCard.js) | **Routers:**<br>• [items.py](Backend/routers/items.py)<br>• [saved.py](Backend/routers/saved.py) (bookmarks) |
-| 2 | Category & Condition Metadata | **Screens:**<br>• [Home (filter panel)](frontend/src/pages/resource/Home.js) | **Routers:**<br>• [items.py](Backend/routers/items.py) (server-side ENUM validation) |
-| 3 | Location-Based Filter | **Screens:**<br>• [Home (college/faculty filter)](frontend/src/pages/resource/Home.js)<br>• [NearbyAll](frontend/src/pages/resource/NearbyAll.js)<br>• [PopularAll](frontend/src/pages/resource/PopularAll.js)<br><br>**Components:**<br>• [ExploreCards](frontend/src/components/ExploreCards.js) | **Routers:**<br>• [items.py](Backend/routers/items.py) (college/faculty query) |
-
-**🗄️ Database (MongoDB):** [database.py](Backend/database.py) (connection + helpers) · [seed.py](Backend/seed.py) (collections, indexes & seed data) — owns collections: `items`, `saved_items`.
+| # | Module Name | Frontend | Backend | Database |
+|---|-------------|----------|---------|----------|
+| 1 | Item Listing & Management | **Screens:**<br>• [Lend (My Listings)](frontend/src/pages/resource/Lend.js)<br>• [ItemForm (Add/Edit)](frontend/src/pages/resource/ItemForm.js)<br>• [ItemDetail](frontend/src/pages/resource/ItemDetail.js)<br><br>**Components:**<br>• [ItemCard](frontend/src/components/ItemCard.js) | **Routers:**<br>• [items.py](Backend/routers/items.py)<br>• [saved.py](Backend/routers/saved.py) (bookmarks) | **Files:**<br>• [database.py](Backend/database.py)<br>• [seed.py](Backend/seed.py)<br>**Collections:**<br>• `items`<br>• `saved_items` |
+| 2 | Category & Condition Metadata | **Screens:**<br>• [Home (filter panel)](frontend/src/pages/resource/Home.js) | **Routers:**<br>• [items.py](Backend/routers/items.py) (server-side ENUM validation) | **Files:**<br>• [database.py](Backend/database.py)<br>• [seed.py](Backend/seed.py)<br>**Collections:**<br>• _Read-only — owns no collections_<br>• _metadata embedded in_ `items` _docs_ |
+| 3 | Location-Based Filter | **Screens:**<br>• [Home (college/faculty filter)](frontend/src/pages/resource/Home.js)<br>• [NearbyAll](frontend/src/pages/resource/NearbyAll.js)<br>• [PopularAll](frontend/src/pages/resource/PopularAll.js)<br><br>**Components:**<br>• [ExploreCards](frontend/src/components/ExploreCards.js) | **Routers:**<br>• [items.py](Backend/routers/items.py) (college/faculty query) | **Files:**<br>• [database.py](Backend/database.py)<br>• [seed.py](Backend/seed.py)<br>**Collections:**<br>• _Read-only — owns no collections_<br>• _reads_ `items` |
 
 ## Transaction & Handover Subsystem
 The accountability engine: the loan lifecycle (Pending → Approved → Borrowed → Completed), QR-signed
