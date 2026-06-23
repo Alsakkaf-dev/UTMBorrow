@@ -187,10 +187,18 @@ async def my_items(user: dict = Depends(get_current_user)):
 
 
 @router.get("/{item_id}")
-async def get_item(item_id: str):
+async def get_item(item_id: str, user: dict = Depends(get_current_user)):
     it = await db.items.find_one({"id": item_id})
     if not it or it["availability_status"] == "Removed":
         raise HTTPException(status_code=404, detail="Item not found.")
+    # Private listings and listings from suspended/banned owners are hidden from
+    # everyone but the owner (mirrors the catalog browse filter).
+    if it["owner_id"] != user["id"]:
+        if it.get("visibility") == "Private":
+            raise HTTPException(status_code=404, detail="Item not found.")
+        owner = await db.users.find_one({"id": it["owner_id"]})
+        if not owner or owner.get("account_status", "Active") != "Active":
+            raise HTTPException(status_code=404, detail="Item not found.")
     it = clean(it)
     it["owner"] = await _owner_brief(it["owner_id"])
     return {"item": it}
