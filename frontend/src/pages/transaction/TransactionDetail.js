@@ -870,14 +870,14 @@ export default function TransactionDetail() {
         )}
 
         {/* Secondary actions row */}
-        {(chatOpen || (isBorrower && ["Pending", "Approved"].includes(tx.status))) && (
+        {(chatOpen || (isBorrower && ["Pending", "Approved"].includes(tx.status)) || (isLender && tx.status === "Approved")) && (
           <div className="flex gap-2.5">
             {chatOpen && (
               <Button variant="secondary" className="flex-1 !py-3" onClick={() => navigate(`/chat/${id}`)} data-testid="tx-open-chat">
                 <ChatCircle size={18} weight="bold" /> Chat
               </Button>
             )}
-            {isBorrower && ["Pending", "Approved"].includes(tx.status) && (
+            {((isBorrower && ["Pending", "Approved"].includes(tx.status)) || (isLender && tx.status === "Approved")) && (
               <Button variant="secondary" className="flex-1 !py-3" loading={busy} onClick={() => act("cancel", "Request cancelled.")} data-testid="tx-cancel">
                 Cancel
               </Button>
