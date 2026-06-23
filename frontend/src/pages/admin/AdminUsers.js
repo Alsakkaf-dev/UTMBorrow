@@ -16,7 +16,6 @@ import { toast } from "../../components/Toast";
 const SUSPENSION_TYPES = [
   { value: "3_Day",    label: "3 Days" },
   { value: "7_Day",    label: "7 Days" },
-  { value: "14_Day",   label: "14 Days" },
   { value: "30_Day",   label: "30 Days" },
   { value: "Permanent", label: "Permanent ban" },
 ];
