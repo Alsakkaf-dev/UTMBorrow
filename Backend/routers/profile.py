@@ -48,6 +48,10 @@ async def get_profile(user_id: str):
 async def update_profile(body: ProfileIn, user: dict = Depends(get_current_user)):
     if body.profile_picture and len(body.profile_picture) > 7_500_000:
         raise HTTPException(status_code=400, detail="Image too large (max 5MB).")
+    # Validate type server-side too (the client check is bypassable): only JPEG/PNG data URLs.
+    if body.profile_picture and not body.profile_picture.startswith(
+            ("data:image/jpeg;base64,", "data:image/png;base64,")):
+        raise HTTPException(status_code=400, detail="Profile picture must be a JPEG or PNG image.")
     if body.campus not in (None, "", *CAMPUSES):
         raise HTTPException(status_code=400, detail="Invalid campus.")
     update = {}
