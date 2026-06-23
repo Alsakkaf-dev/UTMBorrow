@@ -42,21 +42,25 @@ async def generate_qr(tx_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="QR is only available for approved or active loans.")
 
     existing = await db.qr_tokens.find_one({"transaction_id": tx_id})
-    if existing:
+    if existing and not existing.get("is_revoked") and iso(now_utc()) <= existing["expires_at"]:
         return {"qr_string": existing["qr_string"], "issued_at": existing["issued_at"],
                 "expires_at": existing["expires_at"], "algorithm": existing["algorithm"]}
 
+    # No token yet, or the previous one expired: mint a fresh 24h token. Update
+    # the same document in place to preserve the one-token-per-transaction rule.
     qr_string, payload_b64, sig, nonce, iat, exp = generate_token(tx_id, user["id"])
-    doc = {
-        "id": new_id(), "transaction_id": tx_id, "borrower_id": user["id"],
+    fields = {
+        "transaction_id": tx_id, "borrower_id": user["id"],
         "token_payload": payload_b64, "token_hash": sig, "cryptographic_nonce": nonce,
         "algorithm": "HMAC-SHA256", "qr_string": qr_string,
-        "issued_at": iso(iat), "expires_at": iso(exp), "is_revoked": False,
-        "revoked_at": None, "created_at": iso(now_utc()),
+        "issued_at": iso(iat), "expires_at": iso(exp), "is_revoked": False, "revoked_at": None,
     }
-    await db.qr_tokens.insert_one(doc)
-    return {"qr_string": qr_string, "issued_at": doc["issued_at"],
-            "expires_at": doc["expires_at"], "algorithm": "HMAC-SHA256"}
+    if existing:
+        await db.qr_tokens.update_one({"transaction_id": tx_id}, {"$set": fields})
+    else:
+        await db.qr_tokens.insert_one({"id": new_id(), **fields, "created_at": iso(now_utc())})
+    return {"qr_string": qr_string, "issued_at": fields["issued_at"],
+            "expires_at": fields["expires_at"], "algorithm": "HMAC-SHA256"}
 
 
 @router.get("/transactions/{tx_id}/qr")
@@ -117,8 +121,16 @@ async def scan(body: ScanIn, user: dict = Depends(get_current_user)):
             await _record_scan(token_id, tx_id, user["id"], purpose, "State_Mismatch", device=body.device_info)
             return {"success": False, "scan_result": "State_Mismatch",
                     "message": f"Handover not allowed for a {tx['status']} transaction."}
+        # Atomic guard: only the first concurrent scan wins Approved->Borrowed,
+        # so a near-simultaneous double-scan can't duplicate the side effects.
+        won = await db.transactions.find_one_and_update(
+            {"id": tx_id, "status": "Approved"},
+            {"$set": {"status": "Borrowed", "updated_at": iso(now_utc())}})
+        if not won:
+            await _record_scan(token_id, tx_id, user["id"], purpose, "Already_Used", device=body.device_info)
+            return {"success": False, "scan_result": "Already_Used",
+                    "message": "This item has already been handed over."}
         ev = await _record_scan(token_id, tx_id, user["id"], "Handover", "Success", device=body.device_info)
-        await db.transactions.update_one({"id": tx_id}, {"$set": {"status": "Borrowed", "updated_at": iso(now_utc())}})
         await db.items.update_one({"id": tx["item_id"]}, {"$set": {"availability_status": "Borrowed"}})
         await db.lease_cycles.update_one(
             {"transaction_id": tx_id},
@@ -147,8 +159,15 @@ async def scan(body: ScanIn, user: dict = Depends(get_current_user)):
         await _record_scan(token_id, tx_id, user["id"], purpose, "State_Mismatch", device=body.device_info)
         return {"success": False, "scan_result": "State_Mismatch",
                 "message": f"Return not allowed for a {tx['status']} transaction."}
+    # Atomic guard: only the first concurrent scan wins Borrowed->Completed.
+    won = await db.transactions.find_one_and_update(
+        {"id": tx_id, "status": "Borrowed"},
+        {"$set": {"status": "Completed", "updated_at": iso(now_utc())}})
+    if not won:
+        await _record_scan(token_id, tx_id, user["id"], purpose, "Already_Used", device=body.device_info)
+        return {"success": False, "scan_result": "Already_Used",
+                "message": "This loan has already been completed."}
     ev = await _record_scan(token_id, tx_id, user["id"], "Return", "Success", device=body.device_info)
-    await db.transactions.update_one({"id": tx_id}, {"$set": {"status": "Completed", "updated_at": iso(now_utc())}})
     await db.items.update_one({"id": tx["item_id"]}, {"$set": {"availability_status": "Available"}})
     await db.lease_cycles.update_one({"transaction_id": tx_id}, {"$set": {
         "return_scan_event_id": ev["id"], "return_timestamp": iso(now_utc()),
