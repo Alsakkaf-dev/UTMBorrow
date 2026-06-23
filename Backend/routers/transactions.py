@@ -59,6 +59,13 @@ async def submit_request(body: RequestIn, user: dict = Depends(get_current_user)
         raise HTTPException(status_code=404, detail="Item not found.")
     if item["owner_id"] == user["id"]:
         raise HTTPException(status_code=400, detail="You cannot borrow your own item.")
+    # Private listings are hidden from the catalog and must not be borrowable
+    # by a non-owner who reached them via a direct link.
+    if item.get("visibility") == "Private":
+        raise HTTPException(status_code=404, detail="Item not found.")
+    owner = await db.users.find_one({"id": item["owner_id"]})
+    if not owner or owner.get("account_status", "Active") != "Active":
+        raise HTTPException(status_code=400, detail="This item is currently unavailable.")
 
     # Atomic concurrency lock: Available -> Pending
     locked = await db.items.find_one_and_update(
@@ -140,7 +147,10 @@ async def reject(tx_id: str, body: ReasonIn, user: dict = Depends(get_current_us
     await db.transactions.update_one({"id": tx_id}, {"$set": {
         "status": "Rejected", "rejection_reason": (body.reason or "").strip() or None,
         "updated_at": iso(now_utc())}})
-    await db.items.update_one({"id": tx["item_id"]}, {"$set": {"availability_status": "Available"}})
+    # Scope the restore to a still-Pending item so we never re-list a listing
+    # the owner soft-removed or moderation took down while the request was open.
+    await db.items.update_one({"id": tx["item_id"], "availability_status": "Pending"},
+                              {"$set": {"availability_status": "Available"}})
     await log_transition(tx_id, "Pending", "Rejected", user["id"], body.reason)
     await notify(tx["borrower_id"], "RequestRejected",
                  "Your borrow request was rejected." + (f" Reason: {body.reason}" if body.reason else ""),
@@ -171,7 +181,10 @@ async def cancel(tx_id: str, body: ReasonIn, user: dict = Depends(get_current_us
     await db.transactions.update_one({"id": tx_id}, {"$set": {
         "status": "Cancelled", "cancellation_reason": (body.reason or "").strip() or None,
         "cancelled_by": cancelled_by, "updated_at": iso(now_utc())}})
-    await db.items.update_one({"id": tx["item_id"]}, {"$set": {"availability_status": "Available"}})
+    # Scope the restore to a still-Pending item so we never re-list a listing
+    # the owner soft-removed or moderation took down while the request was open.
+    await db.items.update_one({"id": tx["item_id"], "availability_status": "Pending"},
+                              {"$set": {"availability_status": "Available"}})
     await log_transition(tx_id, tx["status"], "Cancelled", user["id"], body.reason)
     other = tx["lender_id"] if cancelled_by == "Borrower" else tx["borrower_id"]
     await notify(other, "RequestCancelled",
