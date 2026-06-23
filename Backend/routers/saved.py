@@ -25,6 +25,11 @@ async def list_saved(user=Depends(get_current_user)):
     items = []
     for doc in docs:
         item = await db.items.find_one({"id": doc["item_id"]})
+        if not item or item.get("availability_status") == "Removed":
+            continue
+        # Don't surface a listing the owner later made Private (unless it's mine).
+        if item.get("visibility") == "Private" and item.get("owner_id") != user["id"]:
+            continue
         if item:
             enriched = await _enrich(item)
             enriched["saved_at"] = iso(doc.get("saved_at"))
