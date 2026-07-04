@@ -30,6 +30,7 @@ app's database.py conventions exactly. Mongo's _id is never used as a key.
 # Standard library
 import base64
 import random
+import re
 import struct
 import uuid
 import zlib
@@ -90,13 +91,21 @@ PASSWORD_HASH = bcrypt.hashpw("Test1234".encode(), bcrypt.gensalt()).decode()
 
 # --- Profile pictures & item photos ---
 
+def _slug(s):
+    """Filename slug matching the fetched seed image assets in public/seed/."""
+    s = s.lower().replace("&", "and")
+    return re.sub(r"[^a-z0-9]+", "-", s).strip("-")
+
+
 def avatar(name, color):
-    return f"https://ui-avatars.com/api/?name={quote(name)}&size=256&background={color}&color=ffffff&bold=true&format=png"
+    # Real professional headshot, self-hosted under frontend/public/seed/avatars
+    # (served by the app's own origin — no third-party image dependency).
+    return f"/seed/avatars/{_slug(name)}.jpg"
 
 
-def item_photos(slug, n=3):
-    base = slug.lower().replace(" ", "-").replace("/", "-").replace("&", "and")
-    return [f"https://picsum.photos/seed/utmb-{base}-{i}/640/480" for i in range(1, n + 1)]
+def item_photos(title, n=3):
+    # Matching product photo, self-hosted under frontend/public/seed/items.
+    return [f"/seed/items/{_slug(title)}.jpg"]
 
 
 # --- Solid-colour PNG evidence images ---
